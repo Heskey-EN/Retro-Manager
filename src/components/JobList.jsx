@@ -26,7 +26,7 @@ export default function JobList({
     drag.current = {
       x0: e.clientX, y0: e.clientY,
       additive: e.shiftKey || e.metaKey || e.ctrlKey,
-      onCard: !!e.target.closest('.card'),
+      onCard: !!e.target.closest('.job-card'),
       moved: false, box,
     }
 
@@ -41,7 +41,7 @@ export default function JobList({
       const bottom = Math.max(d.y0, ev.clientY)
       setRect({ left: left - d.box.left, top: top - d.box.top, width: right - left, height: bottom - top })
       const ids = []
-      gridRef.current.querySelectorAll('.card').forEach((el) => {
+      gridRef.current.querySelectorAll('.job-card').forEach((el) => {
         const r = el.getBoundingClientRect()
         if (r.left < right && r.right > left && r.top < bottom && r.bottom > top) ids.push(el.dataset.jobId)
       })
@@ -99,7 +99,7 @@ export default function JobList({
   return (
     <div
       ref={gridRef}
-      className={`grid${selecting ? ' grid--selecting' : ''}${dragging ? ' is-dragging' : ''}`}
+      className={`job-grid${selecting ? ' job-grid--selecting' : ''}${dragging ? ' is-dragging' : ''}`}
       onPointerDown={onPointerDown}
       onClickCapture={onClickCapture}
     >

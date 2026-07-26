@@ -503,7 +503,7 @@ export default function App() {
             )}
 
             {loading ? (
-              <div className="grid" aria-hidden>
+              <div className="job-grid" aria-hidden>
                 {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-card" />)}
               </div>
             ) : view === 'list' ? (

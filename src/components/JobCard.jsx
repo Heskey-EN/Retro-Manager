@@ -14,7 +14,7 @@ export default function JobCard({ job, onStatusChange, onOpen, selected, onToggl
 
   return (
     <article
-      className={`card${selected ? ' is-selected' : ''}`}
+      className={`job-card${selected ? ' is-selected' : ''}`}
       style={{ '--status-color': statusColor(job.status) }}
       data-job-id={job.id}
       onClick={(e) => {

@@ -61,6 +61,16 @@
   }
 }
 
+/* NAMING RULE — the two design systems must never share a class name.
+   src/styles.css (the jobs UI) is hand-rolled and UNLAYERED, so any selector
+   it defines beats Tailwind's layered utilities everywhere in the app. Its
+   `.grid`/`.card` therefore silently hijacked every `grid`/`card` element in
+   this Tailwind-styled section: `grid-template-columns: repeat(auto-fill,
+   minmax(300px,1fr))` and `min-height: 55vh` overrode every `grid-cols-*`,
+   so the whole Finance section rendered as one enormous single-column stack.
+   They are now `.job-grid`/`.job-card`. Prefix any new jobs-UI class the same
+   way rather than taking a name Tailwind also ships. */
+
 /* Printing an invoice: hide the app chrome so only the sheet prints. */
 @media print {
   .topbar { display: none !important; }
