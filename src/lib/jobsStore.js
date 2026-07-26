@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient'
 import { getActiveOrgId } from './orgContext'
-import { idbGetAll, idbGet, idbPut, idbBulkPut, idbClear } from './idb'
+import { idbGetAll, idbGet, idbPut, idbBulkPut, idbDelete, idbClear } from './idb'
 
 // A small uniform interface over two interchangeable backends:
 //   - "supabase": a shared Postgres table with real-time Postgres changes,
@@ -61,6 +61,25 @@ function createSupabaseStore() {
         .single()
       if (error) throw error
       return data
+    },
+
+    async deleteMany(ids) {
+      if (!ids?.length) return
+      const orgId = getActiveOrgId()
+      let query = supabase.from(TABLE).delete().in('id', ids)
+      if (orgId) query = query.eq('org_id', orgId)
+      // .select() makes an RLS-filtered no-op visible: deleting below level 2
+      // isn't an error, it just matches zero rows — without this the UI would
+      // report success and the jobs would reappear on the next refetch.
+      const { data, error } = await query.select('id')
+      if (error) throw error
+      const removed = data?.length || 0
+      if (removed === 0) {
+        throw new Error('You do not have permission to delete jobs — ask an admin.')
+      }
+      if (removed < ids.length) {
+        throw new Error(`Only ${removed} of ${ids.length} jobs could be deleted — you may not have permission for the rest.`)
+      }
     },
 
     async clearAll() {
@@ -140,6 +159,13 @@ function createLocalStore() {
       await idbPut('jobs', updated)
       announce({ eventType: 'UPDATE', new: updated })
       return updated
+    },
+
+    async deleteMany(ids) {
+      if (!ids?.length) return
+      for (const id of ids) await idbDelete('jobs', id)
+      // Other tabs reload rather than patching row by row.
+      announce({ eventType: 'SYNC' })
     },
 
     async clearAll() {

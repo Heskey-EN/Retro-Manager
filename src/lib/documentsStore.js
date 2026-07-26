@@ -99,6 +99,14 @@ export const documentsStore = {
     announce(jobId)
   },
 
+  // Every document belonging to a job — used when the job itself is deleted,
+  // so its files don't linger in IndexedDB with nothing pointing at them.
+  async removeForJob(jobId) {
+    const docs = await idbGetAllByIndex('documents', 'job_id', jobId)
+    for (const d of docs) await idbDelete('documents', d.id)
+    announce(jobId)
+  },
+
   // Build a temporary object URL to open/download a stored file.
   fileUrl(doc) {
     if (doc.kind !== 'file' || !doc.blob) return null

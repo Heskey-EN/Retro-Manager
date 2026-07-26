@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { STATUSES } from '../lib/status'
 
 // Floating action bar shown when one or more jobs are selected on the dashboard.
-// Applies a stage or a tag to every selected job, or archives them together.
-export default function BulkActionsBar({ count, onSetStatus, onAddTag, onArchive, onClear }) {
+// Applies a stage or a tag to every selected job, archives them together, or
+// deletes them. Delete is only offered when the caller says the user may —
+// level 1 never deletes, and RLS enforces the same server-side.
+export default function BulkActionsBar({ count, onSetStatus, onAddTag, onArchive, onDelete, onClear, archived }) {
   const [tag, setTag] = useState('')
 
   const submitTag = (e) => {
@@ -31,7 +33,10 @@ export default function BulkActionsBar({ count, onSetStatus, onAddTag, onArchive
           <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Add tag…" aria-label="Tag for selected jobs" />
           <button className="btn btn--sm" type="submit" disabled={!tag.trim()}>Tag</button>
         </form>
-        <button className="btn btn--sm" onClick={onArchive}>Archive</button>
+        <button className="btn btn--sm" onClick={onArchive}>{archived ? 'Restore' : 'Archive'}</button>
+        {onDelete && (
+          <button className="btn btn--sm bulkbar__delete" onClick={onDelete}>Delete</button>
+        )}
       </div>
       <button className="bulkbar__clear" onClick={onClear}>Clear</button>
     </div>

@@ -69,12 +69,12 @@ function sortJobs(jobs, sortBy) {
 }
 
 export default function App() {
-  const { jobs, loading, error, addJobs, updateJob, clearAll } = useJobs()
+  const { jobs, loading, error, addJobs, updateJob, deleteJobs, clearAll } = useJobs()
   // Suite access levels shape the UI; RLS in the hub project is the real
   // enforcement. Local mode (not configured) keeps everything available —
   // it's the user's own browser data.
   const { isAdmin, canDeleteJobs, configured, canSubmitExpenses } = useAuth()
-  const mayDeleteAll = !configured || canDeleteJobs
+  const mayDelete = !configured || canDeleteJobs
   const [section, setSection] = useState(sectionFromHash)
   const [view, setView] = useState('list')
   const [query, setQuery] = useState('')
@@ -88,6 +88,7 @@ export default function App() {
   const [anchorId, setAnchorId] = useState(null)
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
+  const [deleteSelectedOpen, setDeleteSelectedOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('retrofit.sort') || 'start')
   const searchRef = useRef(null)
@@ -150,7 +151,7 @@ export default function App() {
     [activeJob, jobs],
   )
 
-  const anyOverlay = addOpen || templatesOpen || deleteAllOpen || !!stageMove || !!openJob
+  const anyOverlay = addOpen || templatesOpen || deleteAllOpen || deleteSelectedOpen || !!stageMove || !!openJob
 
   // Global shortcuts: "/" or ⌘/Ctrl-K focuses search; Escape clears filters and
   // selection. Skipped while typing in a field or when an overlay owns Escape.
@@ -208,18 +209,21 @@ export default function App() {
 
   // Shift-click: select every job between the anchor and this one, in view order.
   const selectRange = useCallback((id) => {
+    const ids = sorted.map((j) => j.id)
+    const anchor = anchorId ?? id
+    const i1 = ids.indexOf(anchor)
+    const i2 = ids.indexOf(id)
     setSelected((prev) => {
-      const ids = sorted.map((j) => j.id)
-      const anchor = anchorId ?? id
-      const i1 = ids.indexOf(anchor)
-      const i2 = ids.indexOf(id)
       const next = new Set(prev)
       if (i1 === -1 || i2 === -1) { next.add(id); return next }
       const [lo, hi] = i1 < i2 ? [i1, i2] : [i2, i1]
       for (let k = lo; k <= hi; k++) next.add(ids[k])
       return next
     })
-    if (anchorId == null) setAnchorId(id)
+    // Re-seed a missing anchor (it was filtered away, or a marquee/select-all
+    // left none) — otherwise every later shift-click silently selected one job
+    // instead of a range, for the rest of the session.
+    if (i1 === -1) setAnchorId(id)
   }, [sorted, anchorId])
 
   // Drag-box: replace (or, with a modifier, add to) the selection.
@@ -228,6 +232,9 @@ export default function App() {
       if (additive) { const next = new Set(prev); ids.forEach((id) => next.add(id)); return next }
       return new Set(ids)
     })
+    // A shift-click straight after a drag should range from the drag, not
+    // from whatever was clicked before it.
+    if (ids.length) setAnchorId(ids[ids.length - 1])
   }, [])
 
   const clearSelection = useCallback(() => { setSelected(new Set()); setAnchorId(null) }, [])
@@ -244,6 +251,7 @@ export default function App() {
   }, [])
 
   const allVisibleSelected = sorted.length > 0 && sorted.every((j) => selected.has(j.id))
+  const someVisibleSelected = selected.size > 0 && !allVisibleSelected
   const toggleSelectAll = () => {
     setSelected((prev) => {
       const next = new Set(prev)
@@ -251,6 +259,7 @@ export default function App() {
       else sorted.forEach((j) => next.add(j.id))
       return next
     })
+    setAnchorId(null)
   }
 
   const bulkSetStatus = useCallback(async (status) => {
@@ -286,31 +295,70 @@ export default function App() {
       const tags = job.tags || []
       if (!tags.some((x) => x.toLowerCase() === t.toLowerCase())) writes.push(updateJob(id, { tags: [...tags, t] }))
     }
+    // Count the writes actually queued — jobs that already carry the tag are
+    // skipped, and claiming to have tagged them would be a lie.
+    const n = writes.length
+    if (!n) {
+      pushToast({ type: 'success', text: `Every selected job already has “${t}”.` })
+      return
+    }
     const results = await Promise.all(writes)
     const failed = results.filter((ok) => ok === false).length
-    const n = selected.size
     if (failed) pushToast({ type: 'error', text: `Tagged ${n - failed} of ${n} — ${failed} failed to save.` })
     else pushToast({ type: 'success', text: `Tagged ${n} job${n === 1 ? '' : 's'} “${t}”.` })
   }, [selected, jobs, updateJob, pushToast])
 
+  // On the Archived tab this restores instead — archiving already-archived
+  // jobs did nothing while reporting success, and its Undo then un-archived
+  // them, i.e. undoing a change that never happened.
   const bulkArchive = useCallback(async () => {
     const ids = [...selected]
-    const results = await Promise.all(ids.map((id) => updateJob(id, { archived: true })))
+    const nowArchived = scope !== 'archived'
+    const results = await Promise.all(ids.map((id) => updateJob(id, { archived: nowArchived })))
     const failed = results.filter((ok) => ok === false).length
     setSelected(new Set())
+    const verb = nowArchived ? 'Archived' : 'Restored'
     if (failed) {
-      pushToast({ type: 'error', text: `Archived ${ids.length - failed} of ${ids.length} — ${failed} failed to save.` })
+      pushToast({ type: 'error', text: `${verb} ${ids.length - failed} of ${ids.length} — ${failed} failed to save.` })
     } else {
       pushToast({
         type: 'success',
-        text: `Archived ${ids.length} job${ids.length === 1 ? '' : 's'}.`,
-        action: { label: 'Undo', onClick: () => ids.forEach((id) => updateJob(id, { archived: false })) },
+        text: `${verb} ${ids.length} job${ids.length === 1 ? '' : 's'}.`,
+        action: { label: 'Undo', onClick: () => ids.forEach((id) => updateJob(id, { archived: !nowArchived })) },
       })
     }
-  }, [selected, updateJob, pushToast])
+  }, [selected, scope, updateJob, pushToast])
+
+  const bulkDelete = useCallback(async () => {
+    const ids = [...selected]
+    if (!ids.length) return
+    try {
+      await deleteJobs(ids)
+      setSelected(new Set())
+      setAnchorId(null)
+      pushToast({ type: 'success', text: `Deleted ${ids.length} job${ids.length === 1 ? '' : 's'}.` })
+    } catch (err) {
+      pushToast({ type: 'error', text: err?.message || 'Could not delete those jobs.' })
+    }
+    setDeleteSelectedOpen(false)
+  }, [selected, deleteJobs, pushToast])
 
   // Selection only applies to the Jobs list; drop it when the view or scope changes.
   useEffect(() => { setSelected(new Set()); setAnchorId(null) }, [view, scope])
+
+  // Keep the selection honest: it may only ever contain jobs that are on
+  // screen right now. Without this, filtering/searching (or a job being
+  // deleted, archived, or removed by another user) left ids behind, so the
+  // bulk bar counted jobs the user couldn't see — and acted on them.
+  useEffect(() => {
+    const visible = new Set(sorted.map((j) => j.id))
+    setSelected((prev) => {
+      if (prev.size === 0) return prev
+      const next = new Set([...prev].filter((id) => visible.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+    setAnchorId((prev) => (prev && visible.has(prev) ? prev : null))
+  }, [sorted])
 
   async function handleDeleteAll() {
     try {
@@ -322,6 +370,8 @@ export default function App() {
     }
     setActiveJob(null)
     setStatusFilter(null)
+    setSelected(new Set()) // else the bulk bar floats over the empty state
+    setAnchorId(null)
     setDeleteAllOpen(false)
     pushToast({ type: 'success', text: 'All jobs and documents deleted.' })
   }
@@ -428,7 +478,14 @@ export default function App() {
               <div className="board__right">
                 {view === 'list' && sorted.length > 0 && (
                   <label className="selectall" title="Select all shown">
-                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} />
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      // A part-selection shows a dash rather than an empty box,
+                      // matching the project header checkboxes.
+                      ref={(el) => { if (el) el.indeterminate = someVisibleSelected }}
+                      onChange={toggleSelectAll}
+                    />
                     All
                   </label>
                 )}
@@ -468,7 +525,7 @@ export default function App() {
                     {scope === 'archived' ? 'Active jobs' : `Archived${archivedCount ? ` (${archivedCount})` : ''}`}
                   </button>
                 )}
-                {mayDeleteAll && (
+                {mayDelete && (
                   <button className="btn btn--ghost btn--sm iconbtn--danger" onClick={() => setDeleteAllOpen(true)} title="Delete all jobs">
                     <Icon name="trash" size={15} /> Delete all
                   </button>
@@ -580,10 +637,20 @@ export default function App() {
       {(view === 'list' || view === 'projects') && selected.size > 0 && (
         <BulkActionsBar
           count={selected.size}
+          archived={scope === 'archived'}
           onSetStatus={bulkSetStatus}
           onAddTag={bulkAddTag}
           onArchive={bulkArchive}
+          onDelete={mayDelete ? () => setDeleteSelectedOpen(true) : null}
           onClear={clearSelection}
+        />
+      )}
+
+      {deleteSelectedOpen && (
+        <DeleteSelectedDialog
+          count={selected.size}
+          onCancel={() => setDeleteSelectedOpen(false)}
+          onConfirm={bulkDelete}
         />
       )}
 
@@ -627,6 +694,44 @@ function WorkerExpensesRoute() {
         <a className="btn-primary inline-flex rounded-lg" href={isAdmin ? '#/finance/expenses' : '#/'}>
           {isAdmin ? 'Open Finance expenses' : 'Back to your jobs'}
         </a>
+      </div>
+    </div>
+  )
+}
+
+// Confirmation for deleting the selected jobs. Deleting is irreversible (and
+// takes the jobs' documents with it), so it always asks — but a plain confirm,
+// not the typed one the "delete everything" button uses.
+function DeleteSelectedDialog({ count, onCancel, onConfirm }) {
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy) onCancel() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel, busy])
+
+  return (
+    <div className="modal-backdrop" onClick={() => !busy && onCancel()}>
+      <div className="modal modal--sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Delete selected jobs">
+        <div className="confirm">
+          <span className="confirm__icon"><Icon name="alert" size={22} /></span>
+          <h2 className="confirm__title">Delete {count} selected job{count === 1 ? '' : 's'}?</h2>
+          <p className="confirm__text">
+            This permanently removes {count === 1 ? 'the job and its documents' : 'these jobs and their documents'}.
+            It cannot be undone — to keep {count === 1 ? 'it' : 'them'} out of the way instead, use <strong>Archive</strong>.
+          </p>
+          <div className="confirm__actions">
+            <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+            <button
+              className="btn btn--danger"
+              disabled={busy}
+              onClick={async () => { setBusy(true); try { await onConfirm() } finally { setBusy(false) } }}
+            >
+              {busy ? 'Deleting…' : `Delete ${count} job${count === 1 ? '' : 's'}`}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { jobsStore } from '../lib/jobsStore'
+import { documentsStore } from '../lib/documentsStore'
 
 // Loads all jobs, keeps them in sync with the backend in real time, and exposes
 // helpers for adding / updating / clearing. Merge logic is shared by both the
@@ -117,6 +118,25 @@ export function useJobs() {
     }
   }, [refetch])
 
+  // Permanently remove jobs (and, locally, their documents). Level >= 2 in
+  // suite mode — RLS is the real gate, and deleteMany surfaces a blocked
+  // delete as an error rather than a silent no-op.
+  const deleteJobs = useCallback(async (ids) => {
+    if (!ids?.length) return 0
+    const idSet = new Set(ids)
+    setJobs((prev) => prev.filter((j) => !idSet.has(j.id))) // optimistic
+    try {
+      await jobsStore.deleteMany(ids)
+    } catch (err) {
+      setError(err.message || String(err))
+      await refetch(true) // put back whatever survived, keep the error visible
+      throw err
+    }
+    // Best-effort local cleanup; a failure here must not fail the delete.
+    for (const id of ids) documentsStore.removeForJob(id).catch(() => {})
+    return ids.length
+  }, [refetch])
+
   const clearAll = useCallback(async () => {
     // Delete first, THEN empty the list — if the backend refuses (network,
     // permissions) the jobs are still there and the UI must keep showing them.
@@ -130,5 +150,5 @@ export function useJobs() {
     }
   }, [refetch])
 
-  return { jobs, loading, error, addJobs, updateJob, clearAll, refetch }
+  return { jobs, loading, error, addJobs, updateJob, deleteJobs, clearAll, refetch }
 }

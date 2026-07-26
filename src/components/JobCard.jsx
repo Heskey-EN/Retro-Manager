@@ -31,16 +31,24 @@ export default function JobCard({ job, onStatusChange, onOpen, selected, onToggl
       }}
     >
       {onToggleSelect && (
-        <label
-          className="card__check"
-          onClick={(e) => {
-            e.stopPropagation()
-            e.preventDefault()
-            if (e.shiftKey && onSelectRange) onSelectRange(job.id)
-            else onToggleSelect(job.id)
-          }}
-        >
-          <input type="checkbox" checked={!!selected} readOnly tabIndex={-1} aria-label={`Select ${jobAddress(job)}`} />
+        // The input owns the toggle (via onChange) so it stays keyboard- and
+        // screen-reader-operable; the label only stops the click reaching the
+        // card. Shift-click preventDefault suppresses the change event so the
+        // range handler runs instead of a plain toggle.
+        <label className="card__check" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={!!selected}
+            aria-label={`Select ${jobAddress(job)}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (e.shiftKey && onSelectRange) {
+                e.preventDefault()
+                onSelectRange(job.id)
+              }
+            }}
+            onChange={() => onToggleSelect(job.id)}
+          />
         </label>
       )}
       <span className="card__rail" aria-hidden />
