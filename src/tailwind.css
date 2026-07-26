@@ -1,0 +1,71 @@
+/* Tailwind CSS v4 + daisyUI 5 entry.
+   Imported before styles.css in main.jsx so the app's existing custom design
+   system (styles.css, unlayered) keeps cascade priority over Tailwind's
+   @layer-based preflight/utilities.
+
+   daisyUI is prefixed "dsy-" because this app already defines its own .btn,
+   .card, .modal, .drawer, .alert classes — the prefix keeps daisyUI's
+   components (dsy-btn, dsy-card, …) from colliding with them. Tailwind
+   utilities stay unprefixed. */
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+  prefix: "dsy-";
+}
+
+/* Eco Futures suite brand tokens for the business (Finance) section, which
+   was ported from the Business Hub and is styled with Tailwind utilities —
+   unlike the jobs UI, which uses the hand-rolled system in styles.css.
+   Values match the Hub/tracker tailwind.config exactly. */
+@theme {
+  /* Ground + ink — cool "drafting paper" neutrals */
+  --color-paper: #EDF1F3;
+  --color-paper-warm: #F4F1EA;
+  --color-paper-card: #FBFCFD;
+  --color-ink: #16202B;
+  --color-ink-soft: #3C4A57;
+  --color-ink-faint: #6B7885;
+
+  /* Structural navy (logo lockup, dark chrome) */
+  --color-navy: #0D1B2A;
+  --color-navy-deep: #081521;
+
+  /* Ember = primary action / accent · Moss = success · Amber = pending */
+  --color-ember: #E4572E;
+  --color-ember-soft: #F0703F;
+  --color-ember-deep: #B83C18;
+  --color-moss: #2E7D4F;
+  --color-moss-soft: #3E9A63;
+  --color-moss-deep: #1F5E39;
+  --color-amber: #E8B23A;
+  --color-amber-deep: #9A6F12;
+
+  /* Legacy token names kept as aliases → suite values, so the ported
+     tracker classNames (text-accent-green, text-brand-blue …) render
+     on-brand without touching every component. */
+  --color-brand-blue: #E4572E;
+  --color-accent-orange: #E4572E;
+  --color-accent-yellow: #E8B23A;
+  --color-accent-green: #2E7D4F;
+
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --container-site: 1200px;
+
+  --shadow-card: 0 1px 2px rgba(22, 32, 43, 0.04), 0 8px 30px -12px rgba(22, 32, 43, 0.14);
+  --shadow-lift: 0 12px 40px -12px rgba(22, 32, 43, 0.28);
+
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.8s ease-out both;
+
+  @keyframes fade-up {
+    0% { opacity: 0; transform: translateY(16px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+}

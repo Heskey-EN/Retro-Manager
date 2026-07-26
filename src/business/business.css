@@ -1,0 +1,67 @@
+/* Component classes for the business (Finance) section, ported from the
+   Business Hub's index.css. They live in the `components` cascade layer so
+   Tailwind utilities on the same element still win (matching the tracker's
+   original v3 layering) — and none of the names collide with the jobs UI's
+   design system in styles.css (that uses .btn--primary / .card etc.).
+   Theme values come from the @theme block in src/tailwind.css. */
+
+@layer components {
+  .container-site {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 1200px;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .container-site { padding-inline: 2rem; }
+  }
+
+  /* Mono "spec" label — the technical / data voice */
+  .spec {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+
+  /* Buttons — ember primary, matching the Hub */
+  .btn-primary,
+  .btn-dark,
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: all 0.2s;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background-color: #e4572e;
+    color: #fff;
+    box-shadow: 0 6px 20px -8px rgba(228, 87, 46, 0.7);
+  }
+  .btn-primary:hover { background-color: #b83c18; }
+  .btn-dark {
+    background-color: #0d1b2a;
+    color: #fff;
+  }
+  .btn-dark:hover { background-color: #081521; }
+  .btn-outline {
+    border: 1px solid rgba(22, 32, 43, 0.2);
+    background: transparent;
+    color: #16202b;
+  }
+  .btn-outline:hover {
+    border-color: rgba(22, 32, 43, 0.4);
+    background: rgba(22, 32, 43, 0.03);
+  }
+}
+
+/* Printing an invoice: hide the app chrome so only the sheet prints. */
+@media print {
+  .topbar { display: none !important; }
+}
