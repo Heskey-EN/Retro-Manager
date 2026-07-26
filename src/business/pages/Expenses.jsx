@@ -20,6 +20,7 @@ const CATEGORY_COLORS = {
   'Accountancy': '#1F5E39', // moss deep
   'Marketing': '#F0703F', // ember soft
   'Other': '#6B7885', // ink faint
+  'Job costs': '#3E77A8', // booking blue — entries synced from the Jobs tab
 }
 
 const RECEIPT_ACCEPT = 'image/*,application/pdf'
@@ -189,6 +190,22 @@ function EditExpenseModal({ expense, onView, onClose }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  // Costs synced from the Jobs tab aren't edited here — the job's costing is
+  // the source of truth and Finance follows it automatically.
+  if (expense._linked) {
+    return (
+      <Modal title="Synced from the Jobs tab" onClose={onClose}>
+        <p className="text-sm text-slate-500">
+          This cost comes from the costing on <strong>{expense._linkedJob || 'a job'}</strong> in
+          the Jobs tab. Edit the job's costing there and Finance updates automatically.
+        </p>
+        <a href="#/" className="btn-primary mt-4 w-full rounded-lg">
+          Open the Jobs tab
+        </a>
+      </Modal>
+    )
+  }
 
   // Receipt changes persist immediately (so Remove/Replace just work); the
   // text fields save on "Save changes".
@@ -380,6 +397,7 @@ export default function Expenses() {
                               {fmtDayMonth(x.date)} · {x.category}
                               {accountOf(x) === 'personal' && <span className="ml-1 font-bold text-brand-blue">· Personal</span>}
                               {x._team && <span className="ml-1 font-bold text-moss">· logged by {x._teamBy}</span>}
+                              {x._linked && <span className="ml-1 font-bold" style={{ color: '#3E77A8' }}>· from Jobs tab</span>}
                             </span>
                           </span>
                           <span className="text-sm font-bold">−{gbp.format(x.amount)}</span>

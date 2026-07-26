@@ -23,6 +23,15 @@ function pickColumn(headers, hints, exclude = []) {
   return null
 }
 
+// True only for a real calendar date — Date() would happily roll '2026-09-31'
+// over into October, and Postgres rejects impossible dates with an error that
+// (because imports insert as one batch) would fail the entire file.
+function isRealDate(y, m, d) {
+  const yy = Number(y), mm = Number(m), dd = Number(d)
+  const dt = new Date(Date.UTC(yy, mm - 1, dd))
+  return dt.getUTCFullYear() === yy && dt.getUTCMonth() === mm - 1 && dt.getUTCDate() === dd
+}
+
 // Accepts a wide range of human date formats and returns YYYY-MM-DD or null.
 export function parseDate(value) {
   if (!value) return null
@@ -36,7 +45,7 @@ export function parseDate(value) {
     if (y.length === 2) y = `20${y}`
     const dd = String(d).padStart(2, '0')
     const mm = String(m).padStart(2, '0')
-    if (Number(mm) > 12) return null
+    if (!isRealDate(y, mm, dd)) return null
     return `${y}-${mm}-${dd}`
   }
 
@@ -44,6 +53,7 @@ export function parseDate(value) {
   const iso = raw.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})/)
   if (iso) {
     const [, y, m, d] = iso
+    if (!isRealDate(y, m, d)) return null
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   }
 
@@ -81,10 +91,13 @@ export async function parseFile(file, opts = {}) {
   if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm')) {
     const XLSX = await import('xlsx')
     const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
+    // cellDates + an ISO dateNF: without them SheetJS renders Excel's default
+    // Short Date format as 'm/d/yy' regardless of the workbook's UK locale,
+    // and parseDate's DD/MM assumption then silently swaps day and month.
+    const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' })
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
     if (!firstSheet) return { jobs: [], headers: [], mapping: {} }
-    const csv = XLSX.utils.sheet_to_csv(firstSheet, { blankrows: false })
+    const csv = XLSX.utils.sheet_to_csv(firstSheet, { blankrows: false, dateNF: 'yyyy-mm-dd' })
     return parseCsv(csv, opts)
   }
   return parseCsv(file, opts)

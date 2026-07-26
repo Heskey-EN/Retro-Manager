@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { setActiveOrgId } from '../lib/orgContext'
 
@@ -10,7 +10,13 @@ import { setActiveOrgId } from '../lib/orgContext'
 // real enforcement — these values only shape the UI.
 // Safe to use when Supabase isn't configured — reports `configured: false`
 // and the app runs on the local backend.
-export function useAuth() {
+//
+// ONE instance for the whole app: AuthProvider (mounted in main.jsx) runs the
+// state below once and useAuth() reads it from context. Per-component
+// instances each started loading=true and re-ran the membership query, which
+// made admin controls (Finance tab, Manage team, Delete all) flash in late on
+// every load — and disappear entirely if one instance's query failed.
+function useAuthState() {
   const [session, setSession] = useState(null)
   const [membership, setMembership] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -133,4 +139,17 @@ export function useAuth() {
     signOut,
     refresh,
   }
+}
+
+const AuthContext = createContext(null)
+
+export function AuthProvider({ children }) {
+  const auth = useAuthState()
+  return createElement(AuthContext.Provider, { value: auth }, children)
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuth needs <AuthProvider> above it (see src/main.jsx)')
+  return ctx
 }

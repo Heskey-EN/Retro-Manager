@@ -3,12 +3,13 @@
 // under the app topbar; FinanceGate decides who gets in (level 3+ in suite
 // mode, the per-device passcode in local mode).
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   LayoutDashboard, PoundSterling, Receipt, Settings, Lock, Download, Upload, Users,
 } from 'lucide-react'
 import FinanceGate, { lockHub } from './FinanceGate.jsx'
 import { useHubData, updateSettings, exportBackup, importBackup, useCloudStatus } from './lib/store.js'
+import { initManagerLink } from './lib/managerLink.js'
 import { isSuiteConfigured } from './lib/supabaseClient.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useBizRoute, toHash } from './router.jsx'
@@ -140,6 +141,13 @@ export default function BusinessSection() {
   const [showTeam, setShowTeam] = useState(false)
   const route = useBizRoute() || { page: 'dashboard' }
   const { configured, isAdmin } = useAuth()
+
+  // Pull the Jobs tab's costed jobs into Finance (revenue → income, cost
+  // items → expenses) and follow live changes. Re-runs on every open so
+  // local-mode edits made on the Jobs tab are picked up.
+  useEffect(() => {
+    initManagerLink()
+  }, [])
 
   return (
     <FinanceGate>

@@ -35,6 +35,23 @@ export default function JobModal({ job, initialDate, initialType, onClose }) {
   const isEpc = form.type === 'epc'
   const hasExtras = isEpc && form.moreEpcs.length > 0
 
+  // Entries synced from the Jobs tab aren't edited here — the job's costing
+  // is the source of truth and Finance follows it automatically.
+  if (job?._linked) {
+    return (
+      <Modal title="Synced from the Jobs tab" onClose={onClose}>
+        <p className="text-sm text-slate-500">
+          <strong>{job.customer || 'This job'}</strong> comes from the Jobs tab — its projected
+          revenue and costs flow into Finance automatically. To change the figures, open the job
+          there and edit its costing.
+        </p>
+        <a href="#/" className="btn-primary mt-4 w-full rounded-lg">
+          Open the Jobs tab
+        </a>
+      </Modal>
+    )
+  }
+
   // Company weeks: days in the block × assessments/day × £ per assessment
   const blockDays =
     isBlock && form.endDate && form.endDate > form.date

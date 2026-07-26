@@ -53,6 +53,10 @@ function GateShell({ children }) {
 
 /* ── Suite mode ──────────────────────────────────────────────────────── */
 
+// "Start fresh instead" is remembered per org — without this the migration
+// offer re-appeared on every visit for as long as the cloud blob stayed empty.
+const migrationSkipKey = (orgId) => `ef-hub-migration-skip-${orgId}`
+
 function CloudBoot({ orgId, children }) {
   // 'connecting' | 'offer-migration' | 'ready' | 'error'
   const [phase, setPhase] = useState('connecting')
@@ -77,7 +81,8 @@ function CloudBoot({ orgId, children }) {
               s.businessPhone ||
               (s.nextInvoiceNo || 1) > 1),
         )
-        setPhase(cloudIsEmpty() && hasLocal ? 'offer-migration' : 'ready')
+        const dismissed = localStorage.getItem(migrationSkipKey(orgId)) === '1'
+        setPhase(cloudIsEmpty() && hasLocal && !dismissed ? 'offer-migration' : 'ready')
       })
       .catch(() => active && setPhase('error'))
     return () => {
@@ -131,7 +136,10 @@ function CloudBoot({ orgId, children }) {
           </button>
           <button
             type="button"
-            onClick={() => setPhase('ready')}
+            onClick={() => {
+              localStorage.setItem(migrationSkipKey(orgId), '1')
+              setPhase('ready')
+            }}
             className="btn-outline w-full rounded-lg"
           >
             Start fresh instead

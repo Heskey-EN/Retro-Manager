@@ -31,31 +31,46 @@ export default function CsvUpload({ onJobs, onToast, variant = 'compact' }) {
       const failures = []
 
       for (const file of valid) {
+        // Parse and save are separate try/catches so the toast can tell the
+        // truth: "couldn't read the file" and "couldn't save the jobs" need
+        // opposite user reactions (fix the file vs just retry).
+        let jobs, mapping
         try {
           const batchId = `${file.name}-${Date.now()}`
-          const { jobs, mapping } = await parseFile(file, { batchId })
-          if (!jobs.length) {
-            failures.push(file.name)
-            continue
-          }
-          await onJobs(jobs)
-          totalJobs += jobs.length
-          imported.push(file.name)
-          if (mapping.startCol) lastStartCol = mapping.startCol
+          ;({ jobs, mapping } = await parseFile(file, { batchId }))
         } catch {
-          failures.push(file.name)
+          failures.push({ name: file.name, reason: 'could not be read' })
+          continue
         }
+        if (!jobs.length) {
+          failures.push({ name: file.name, reason: 'had no rows' })
+          continue
+        }
+        try {
+          await onJobs(jobs)
+        } catch (err) {
+          failures.push({ name: file.name, reason: `failed to save — ${err?.message || 'unknown error'}` })
+          continue
+        }
+        totalJobs += jobs.length
+        imported.push(file.name)
+        if (mapping.startCol) lastStartCol = mapping.startCol
       }
 
       if (!totalJobs) {
-        onToast?.({ type: 'error', text: `No rows found in ${valid.length === 1 ? valid[0].name : 'the selected files'}.` })
+        const detail = failures.length === 1
+          ? `${failures[0].name} ${failures[0].reason}.`
+          : failures.map((f) => `${f.name} ${f.reason}`).join('; ') + '.'
+        onToast?.({ type: 'error', text: `Nothing imported: ${detail}` })
         return
       }
 
       const fileNote = imported.length > 1 ? ` from ${imported.length} files` : ` from ${imported[0]}`
       const dateNote = imported.length === 1 && lastStartCol ? ` · dates from “${lastStartCol}”` : ''
       const skipNote = skipped ? ` Skipped ${skipped} non-spreadsheet file${skipped === 1 ? '' : 's'}.` : ''
-      const failNote = failures.length ? ` ${failures.length} file${failures.length === 1 ? '' : 's'} could not be read.` : ''
+      const failNote = failures.length
+        ? ` ${failures.map((f) => `${f.name} ${f.reason}`).join('; ')}.`
+        : ''
       onToast?.({
         type: 'success',
         text: `Imported ${totalJobs} job${totalJobs === 1 ? '' : 's'}${fileNote}${dateNote}.${skipNote}${failNote}`,

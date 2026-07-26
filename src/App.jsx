@@ -253,7 +253,7 @@ export default function App() {
     })
   }
 
-  const bulkSetStatus = useCallback((status) => {
+  const bulkSetStatus = useCallback(async (status) => {
     const ids = [...selected]
     // Bulk moves skip the per-job documents gate, so warn when any job would
     // jump *forward* in the pipeline (the case the single-job gate protects).
@@ -266,32 +266,47 @@ export default function App() {
       )
       if (!ok) return
     }
-    for (const id of ids) updateJob(id, { status })
-    pushToast({ type: 'success', text: `Moved ${ids.length} job${ids.length === 1 ? '' : 's'} to ${statusLabel(status)}.` })
+    const results = await Promise.all(ids.map((id) => updateJob(id, { status })))
+    const failed = results.filter((ok) => ok === false).length
+    const moved = ids.length - failed
+    if (failed) {
+      pushToast({ type: 'error', text: `Moved ${moved} of ${ids.length} — ${failed} job${failed === 1 ? '' : 's'} failed to save.` })
+    } else {
+      pushToast({ type: 'success', text: `Moved ${moved} job${moved === 1 ? '' : 's'} to ${statusLabel(status)}.` })
+    }
   }, [selected, jobs, updateJob, pushToast])
 
-  const bulkAddTag = useCallback((tag) => {
+  const bulkAddTag = useCallback(async (tag) => {
     const t = tag.trim()
     if (!t) return
-    const n = selected.size
+    const writes = []
     for (const id of selected) {
       const job = jobs.find((j) => j.id === id)
       if (!job) continue
       const tags = job.tags || []
-      if (!tags.some((x) => x.toLowerCase() === t.toLowerCase())) updateJob(id, { tags: [...tags, t] })
+      if (!tags.some((x) => x.toLowerCase() === t.toLowerCase())) writes.push(updateJob(id, { tags: [...tags, t] }))
     }
-    pushToast({ type: 'success', text: `Tagged ${n} job${n === 1 ? '' : 's'} “${t}”.` })
+    const results = await Promise.all(writes)
+    const failed = results.filter((ok) => ok === false).length
+    const n = selected.size
+    if (failed) pushToast({ type: 'error', text: `Tagged ${n - failed} of ${n} — ${failed} failed to save.` })
+    else pushToast({ type: 'success', text: `Tagged ${n} job${n === 1 ? '' : 's'} “${t}”.` })
   }, [selected, jobs, updateJob, pushToast])
 
-  const bulkArchive = useCallback(() => {
+  const bulkArchive = useCallback(async () => {
     const ids = [...selected]
-    for (const id of ids) updateJob(id, { archived: true })
+    const results = await Promise.all(ids.map((id) => updateJob(id, { archived: true })))
+    const failed = results.filter((ok) => ok === false).length
     setSelected(new Set())
-    pushToast({
-      type: 'success',
-      text: `Archived ${ids.length} job${ids.length === 1 ? '' : 's'}.`,
-      action: { label: 'Undo', onClick: () => ids.forEach((id) => updateJob(id, { archived: false })) },
-    })
+    if (failed) {
+      pushToast({ type: 'error', text: `Archived ${ids.length - failed} of ${ids.length} — ${failed} failed to save.` })
+    } else {
+      pushToast({
+        type: 'success',
+        text: `Archived ${ids.length} job${ids.length === 1 ? '' : 's'}.`,
+        action: { label: 'Undo', onClick: () => ids.forEach((id) => updateJob(id, { archived: false })) },
+      })
+    }
   }, [selected, updateJob, pushToast])
 
   // Selection only applies to the Jobs list; drop it when the view or scope changes.

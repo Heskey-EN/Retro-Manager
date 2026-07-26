@@ -31,10 +31,13 @@ function createSupabaseStore() {
     mode: 'supabase',
 
     async fetchAll() {
-      const { data, error } = await supabase
-        .from(TABLE)
-        .select('*')
-        .order('created_at', { ascending: true })
+      // Explicit org scoping on top of RLS: without it a level-4 master admin
+      // (whose RLS read spans every organisation) would see all orgs' jobs
+      // mixed into one list.
+      const orgId = getActiveOrgId()
+      let query = supabase.from(TABLE).select('*').order('created_at', { ascending: true })
+      if (orgId) query = query.eq('org_id', orgId)
+      const { data, error } = await query
       if (error) throw error
       return data || []
     },
@@ -70,14 +73,30 @@ function createSupabaseStore() {
     },
 
     subscribe(onChange) {
+      // Server-side org filter for INSERT/UPDATE (DELETE events only carry the
+      // pk, so they can't be filtered — the consumer ignores unknown ids).
+      const orgId = getActiveOrgId()
+      // Unique topic per subscriber — useJobs and the Finance job-sync both
+      // subscribe, and two live channels must never share one Phoenix topic.
       const channel = supabase
-        .channel('jobs-changes')
+        .channel(`jobs-changes-${Math.random().toString(36).slice(2, 9)}`)
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: TABLE },
+          {
+            event: '*',
+            schema: 'public',
+            table: TABLE,
+            ...(orgId ? { filter: `org_id=eq.${orgId}` } : {}),
+          },
           (payload) => onChange(payload),
         )
-        .subscribe()
+        .subscribe((status) => {
+          // postgres_changes has no replay: anything sent while the socket was
+          // down (laptop asleep, network blip) is gone. Every (re)join is
+          // therefore a "state unknown" moment — tell the consumer to reload
+          // from the source of truth rather than staying silently stale.
+          if (status === 'SUBSCRIBED') onChange({ eventType: 'SYNC' })
+        })
       return () => supabase.removeChannel(channel)
     },
   }

@@ -61,6 +61,12 @@ const notify = () => listeners.forEach((fn) => fn(data))
 let cloudOrgId = null
 let cloudChannel = null
 let pushTimer = null
+// True from the moment an edit is made until the push carrying it succeeds.
+// Guards two data-loss holes: flushPush firing on tab close, and refetches /
+// realtime blobs adopting server state OVER a local edit that hasn't been
+// pushed yet (the push sends `data` at send time, so adopting first would
+// silently drop the edit).
+let pendingSave = false
 
 // 'off' | 'loading' | 'ready' | 'syncing' | 'error'
 let cloudStatus = 'off'
@@ -104,7 +110,8 @@ async function pushNow() {
   if (error || !rows?.length) {
     console.error('[tracker] cloud save failed:', error?.message || 'no row updated (permissions?)')
     setCloudStatus('error') // next change retries; data is safe in memory
-  } else {
+  } else if (!pushQueued) {
+    pendingSave = false
     setCloudStatus('ready')
   }
   if (pushQueued) {
@@ -114,17 +121,20 @@ async function pushNow() {
 }
 
 function schedulePush() {
+  pendingSave = true
   setCloudStatus('syncing')
   clearTimeout(pushTimer)
   pushTimer = setTimeout(pushNow, 800)
 }
 
 // Flush the debounce window — without this, closing the tab within 800ms of
-// the last edit would silently drop it.
+// the last edit would silently drop it. Keyed on pendingSave, not the status
+// string: a channel status event can overwrite cloudStatus while an edit is
+// still waiting in the debounce window.
 function flushPush() {
   if (!cloudOrgId) return
   clearTimeout(pushTimer)
-  if (cloudStatus === 'syncing') pushNow()
+  if (pendingSave && !pushInFlight) pushNow()
 }
 
 if (typeof window !== 'undefined') {
@@ -137,40 +147,49 @@ if (typeof window !== 'undefined') {
 // Connect the store to the org's cloud row: fetch (or create) it, adopt its
 // contents, and follow other devices' updates. Called by the gate once the
 // signed-in org admin is known.
+let cloudInitTarget = null // org being booted right now (StrictMode re-entry guard)
+
 export async function initCloud(orgId) {
-  if (!supabase || !orgId || cloudOrgId === orgId) return
-  cloudOrgId = orgId
+  if (!supabase || !orgId || cloudOrgId === orgId || cloudInitTarget === orgId) return
+  cloudInitTarget = orgId
   setCloudStatus('loading')
 
-  const { data: row, error } = await supabase
-    .from('biz_data')
-    .select('data')
-    .eq('org_id', orgId)
-    .maybeSingle()
-  if (error) {
-    setCloudStatus('error')
-    throw new Error(error.message)
-  }
+  // cloudOrgId is only adopted AFTER the load succeeds. Setting it up front
+  // poisoned the re-entry guard: a failed boot followed by leaving and
+  // re-opening Finance would "succeed" instantly with default data — and any
+  // edit would then push that empty blob over the organisation's real one.
+  try {
+    const { data: row, error } = await supabase
+      .from('biz_data')
+      .select('data')
+      .eq('org_id', orgId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
 
-  if (row) {
-    data = normalize(row.data)
-  } else {
-    const { error: insErr } = await supabase.from('biz_data').insert({ org_id: orgId, data: {} })
-    // 23505 = another device created it first — harmless, we'll sync via realtime
-    if (insErr && insErr.code !== '23505') {
-      setCloudStatus('error')
-      throw new Error(insErr.message)
+    if (row) {
+      data = normalize(row.data)
+    } else {
+      const { error: insErr } = await supabase.from('biz_data').insert({ org_id: orgId, data: {} })
+      // 23505 = another device created it first — harmless, we'll sync via realtime
+      if (insErr && insErr.code !== '23505') throw new Error(insErr.message)
+      data = structuredClone(DEFAULT_DATA)
     }
-    data = structuredClone(DEFAULT_DATA)
+  } catch (err) {
+    cloudInitTarget = null
+    setCloudStatus('error')
+    throw err
   }
+  cloudOrgId = orgId
+  cloudInitTarget = null
   notify()
 
   // Re-fetch the row from source of truth — used on (re)subscribe to catch
   // anything missed while the channel was down, and when an event arrives
-  // too large to carry its payload.
+  // too large to carry its payload. Never adopts server state over a local
+  // edit that hasn't been pushed yet — the push wins (last-write-wins model).
   const refetch = async () => {
     const { data: fresh } = await supabase.from('biz_data').select('data').eq('org_id', cloudOrgId).maybeSingle()
-    if (cloudOrgId === orgId && fresh) {
+    if (cloudOrgId === orgId && fresh && !pendingSave && !pushInFlight) {
       data = normalize(fresh.data)
       notify()
     }
@@ -190,6 +209,9 @@ export async function initCloud(orgId) {
         }
         const incoming = payload.new?.data
         if (!incoming || incoming._client === CLIENT_ID) return
+        // Our own unpushed edit outranks another device's blob — adopting it
+        // now would drop the edit before the pending push sends it.
+        if (pendingSave || pushInFlight) return
         data = normalize(incoming)
         notify()
       },
@@ -273,6 +295,21 @@ export async function initTeamExpenses(orgId) {
 
 const isTeamExpense = (id) => teamExpenses.some((x) => x.id === id)
 
+/* ---- Entries synced from the Jobs tab --------------------------------- */
+// Derived by lib/managerLink.js from manager jobs' costing (revenue → income,
+// cost items → "Job costs" expenses). Never written into the blob; edits
+// happen on the job itself, so every mutation path below ignores linked ids.
+
+let managerLinked = { jobs: [], expenses: [] }
+
+export function setManagerLinked(next) {
+  managerLinked = { jobs: next?.jobs || [], expenses: next?.expenses || [] }
+  notify()
+}
+
+const isLinkedJob = (id) => managerLinked.jobs.some((x) => x.id === id)
+const isLinkedExpense = (id) => managerLinked.expenses.some((x) => x.id === id)
+
 // The device's pre-suite localStorage data (for the one-time cloud upload).
 export function localSnapshot() {
   try {
@@ -313,21 +350,26 @@ function persist() {
   notify()
 }
 
-// What the pages see: the org blob plus any team-logged expense rows.
-// (Backups and cloud pushes use `data` directly — team rows live in their
-// own table and must never be written into the blob.)
-function snapshotWithTeam() {
-  return teamExpenses.length ? { ...data, expenses: [...data.expenses, ...teamExpenses] } : data
+// What the pages see: the org blob plus the derived rows — team-logged
+// expenses and entries synced from the Jobs tab. (Backups and cloud pushes
+// use `data` directly — derived rows must never be written into the blob.)
+function snapshotWithDerived() {
+  if (!teamExpenses.length && !managerLinked.jobs.length && !managerLinked.expenses.length) return data
+  return {
+    ...data,
+    jobs: managerLinked.jobs.length ? [...data.jobs, ...managerLinked.jobs] : data.jobs,
+    expenses: [...data.expenses, ...teamExpenses, ...managerLinked.expenses],
+  }
 }
 
 export function getData() {
-  return snapshotWithTeam()
+  return snapshotWithDerived()
 }
 
 export function useHubData() {
-  const [snapshot, setSnapshot] = useState(snapshotWithTeam)
+  const [snapshot, setSnapshot] = useState(snapshotWithDerived)
   useEffect(() => {
-    const fn = () => setSnapshot({ ...snapshotWithTeam() })
+    const fn = () => setSnapshot({ ...snapshotWithDerived() })
     listeners.add(fn)
     return () => listeners.delete(fn)
   }, [])
@@ -367,6 +409,7 @@ export function importJobs(list) {
 }
 
 export function updateJob(id, patch) {
+  if (isLinkedJob(id)) return // synced from the Jobs tab — edit the job there
   mutate((d) => {
     const j = d.jobs.find((x) => x.id === id)
     if (j) Object.assign(j, patch)
@@ -374,6 +417,7 @@ export function updateJob(id, patch) {
 }
 
 export function deleteJob(id) {
+  if (isLinkedJob(id)) return
   mutate((d) => {
     d.jobs = d.jobs.filter((x) => x.id !== id)
   })
@@ -391,6 +435,7 @@ export function addExpense(expense) {
 }
 
 export function updateExpense(id, patch) {
+  if (isLinkedExpense(id)) return // synced from a job's costing — edit the job
   // Team-logged rows live in biz_expenses, not the blob — update optimistically
   // and push the mapped columns; realtime (or a refetch on failure) reconciles.
   if (isTeamExpense(id)) {
@@ -420,6 +465,7 @@ export function updateExpense(id, patch) {
 }
 
 export function deleteExpense(id) {
+  if (isLinkedExpense(id)) return
   if (isTeamExpense(id)) {
     teamExpenses = teamExpenses.filter((x) => x.id !== id)
     notify()
