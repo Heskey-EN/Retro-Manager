@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { STATUSES } from '../lib/status'
+import { STATUSES, PIPELINE_STATUSES } from '../lib/status'
 
 // The signature element: the retrofit workflow rendered as a connected pipeline.
 // Each stage shows how many jobs sit in it; clicking a stage filters the views.
@@ -12,7 +12,10 @@ export default function Pipeline({ jobs, activeStatus, onSelect }) {
     return map
   }, [jobs])
 
-  const max = Math.max(1, ...STATUSES.map((s) => counts[s.value]))
+  // End states (Cancelled) are filter chips beside "All jobs", not numbered
+  // steps — they'd otherwise read as the final stage of the workflow.
+  const endStates = STATUSES.filter((s) => s.terminal && counts[s.value] > 0)
+  const max = Math.max(1, ...PIPELINE_STATUSES.map((s) => counts[s.value]))
 
   return (
     <section className="pipeline" aria-label="Workflow pipeline">
@@ -21,17 +24,31 @@ export default function Pipeline({ jobs, activeStatus, onSelect }) {
           <p className="eyebrow">Workflow</p>
           <h2 className="pipeline__title">Job pipeline</h2>
         </div>
-        <button
-          className={`pipeline__all${!activeStatus ? ' is-active' : ''}`}
-          onClick={() => onSelect(null)}
-        >
-          <span className="pipeline__all-count">{jobs.length}</span>
-          All jobs
-        </button>
+        <div className="pipeline__filters">
+          <button
+            className={`pipeline__all${!activeStatus ? ' is-active' : ''}`}
+            onClick={() => onSelect(null)}
+          >
+            <span className="pipeline__all-count">{jobs.length}</span>
+            All jobs
+          </button>
+          {endStates.map((s) => (
+            <button
+              key={s.value}
+              className={`pipeline__all pipeline__all--end${activeStatus === s.value ? ' is-active' : ''}`}
+              style={{ '--status-color': s.color }}
+              onClick={() => onSelect(activeStatus === s.value ? null : s.value)}
+              aria-pressed={activeStatus === s.value}
+            >
+              <span className="pipeline__all-count">{counts[s.value]}</span>
+              {s.label}
+            </button>
+          ))}
+        </div>
       </header>
 
       <ol className="pipeline__track">
-        {STATUSES.map((s, i) => {
+        {PIPELINE_STATUSES.map((s, i) => {
           const count = counts[s.value]
           const active = activeStatus === s.value
           return (
@@ -52,7 +69,7 @@ export default function Pipeline({ jobs, activeStatus, onSelect }) {
                   />
                 </span>
               </button>
-              {i < STATUSES.length - 1 && (
+              {i < PIPELINE_STATUSES.length - 1 && (
                 <span className="pipeline__connector" aria-hidden>›</span>
               )}
             </li>

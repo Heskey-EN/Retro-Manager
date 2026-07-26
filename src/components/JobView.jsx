@@ -3,6 +3,7 @@ import Icon from './Icon'
 import StatusSelect from './StatusSelect'
 import DocumentsPanel from './DocumentsPanel'
 import CostingPanel from './CostingPanel'
+import AssignPanel from './AssignPanel'
 import GeneratePanel from './GeneratePanel'
 import TagInput from './TagInput'
 import { jobAddress, jobReference, jobPostcode, jobCustomer, jobMeasure } from '../lib/display'
@@ -99,6 +100,15 @@ export default function JobView({ job, onClose, onUpdate, onStatusChange, onArch
             <DocumentsPanel jobId={job.id} jobStatus={job.status} mode="files" />
           </section>
         </div>
+
+        <section className="jobview__box jobview__box--wide">
+          <h2 className="jobview__box-title">Who's on this job</h2>
+          <p className="jobview__box-hint">Assign the people responsible for each part of the delivery.</p>
+          <AssignPanel
+            assignments={job.assignments}
+            onChange={(assignments) => onUpdate(job.id, { assignments })}
+          />
+        </section>
 
         <section className="jobview__box jobview__box--wide">
           <h2 className="jobview__box-title">Costing</h2>

@@ -1,6 +1,7 @@
 import StatusSelect from './StatusSelect'
 import { statusColor } from '../lib/status'
 import { jobAddress, jobReference, jobPostcode, jobCustomer, jobMeasure, formatDateShort } from '../lib/display'
+import { assignedPeople, initials } from '../lib/roles'
 
 // One card per job. The property address is the headline; the reference,
 // postcode and dates are set in mono to read as precise, measured data.
@@ -9,6 +10,7 @@ export default function JobCard({ job, onStatusChange, onOpen, selected, onToggl
   const postcode = jobPostcode(job)
   const customer = jobCustomer(job)
   const measure = jobMeasure(job)
+  const people = assignedPeople(job.assignments)
   const start = formatDateShort(job.start_date)
   const end = job.end_date && job.end_date !== job.start_date ? formatDateShort(job.end_date) : null
 
@@ -65,6 +67,15 @@ export default function JobCard({ job, onStatusChange, onOpen, selected, onToggl
         {job.tags?.length > 0 && (
           <div className="card__tags">
             {job.tags.map((t) => <span key={t} className="tag tag--sm">{t}</span>)}
+          </div>
+        )}
+        {people.length > 0 && (
+          <div className="card__people">
+            {people.map(({ role, person }) => (
+              <span key={role.key} className="card__person" title={`${role.label}: ${person.name}`}>
+                {initials(person.name)}
+              </span>
+            ))}
           </div>
         )}
         <div className="card__foot">

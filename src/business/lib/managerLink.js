@@ -14,9 +14,12 @@ function convert(rows) {
   const jobs = []
   const expenses = []
   for (const r of rows || []) {
+    // A cancelled job earns nothing — its costs stay (they were really spent),
+    // but its revenue must never reach the income figures or the tax estimate.
+    const cancelled = r?.status === 'Cancelled'
     const c = r?.costing
     if (!c) continue
-    const revenue = Number(c.revenue) || 0
+    const revenue = cancelled ? 0 : Number(c.revenue) || 0
     const items = (c.items || []).filter((it) => (Number(it.cost ?? it.amount) || 0) > 0)
     if (revenue <= 0 && !items.length) continue
     const date = ymd(r.start_date) || ymd(r.end_date) || ymd(r.created_at) || new Date().toISOString().slice(0, 10)

@@ -59,7 +59,17 @@ function createSupabaseStore() {
         .eq('id', id)
         .select()
         .single()
-      if (error) throw error
+      if (error) {
+        // PGRST204 = the column doesn't exist. The only optional column is
+        // `assignments` (hub migration 0008), so say which SQL to run rather
+        // than surfacing a raw PostgREST code.
+        if (error.code === 'PGRST204' && 'assignments' in patch) {
+          throw new Error(
+            "Assignments need the hub database migration — run supabase/hub/0008_job_assignments.sql in the hub project's SQL editor.",
+          )
+        }
+        throw error
+      }
       return data
     },
 

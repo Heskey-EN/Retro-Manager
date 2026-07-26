@@ -5,7 +5,7 @@ import { STATUSES } from '../lib/status'
 // Applies a stage or a tag to every selected job, archives them together, or
 // deletes them. Delete is only offered when the caller says the user may —
 // level 1 never deletes, and RLS enforces the same server-side.
-export default function BulkActionsBar({ count, onSetStatus, onAddTag, onArchive, onDelete, onClear, archived }) {
+export default function BulkActionsBar({ count, onSetStatus, onAddTag, onArchive, onDelete, onCosts, onAssign, onClear, archived }) {
   const [tag, setTag] = useState('')
 
   const submitTag = (e) => {
@@ -33,6 +33,8 @@ export default function BulkActionsBar({ count, onSetStatus, onAddTag, onArchive
           <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Add tag…" aria-label="Tag for selected jobs" />
           <button className="btn btn--sm" type="submit" disabled={!tag.trim()}>Tag</button>
         </form>
+        {onAssign && <button className="btn btn--sm" onClick={onAssign}>Assign</button>}
+        {onCosts && <button className="btn btn--sm" onClick={onCosts}>Costs &amp; profit</button>}
         <button className="btn btn--sm" onClick={onArchive}>{archived ? 'Restore' : 'Archive'}</button>
         {onDelete && (
           <button className="btn btn--sm bulkbar__delete" onClick={onDelete}>Delete</button>

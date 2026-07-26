@@ -3,7 +3,7 @@ import { useJobs } from './hooks/useJobs'
 import { useAuth } from './hooks/useAuth'
 import { storeMode } from './lib/jobsStore'
 import { HUB_URL } from './lib/supabaseClient'
-import { statusIndex, statusLabel } from './lib/status'
+import { statusIndex, statusLabel, isTerminalStatus } from './lib/status'
 import { jobReference, jobPostcode, jobCustomer, jobMeasure, jobAddress } from './lib/display'
 import Icon from './components/Icon'
 import Pipeline from './components/Pipeline'
@@ -15,6 +15,8 @@ import JobView from './components/JobView'
 import AddJobModal from './components/AddJobModal'
 import StageMoveDialog from './components/StageMoveDialog'
 import BulkActionsBar from './components/BulkActionsBar'
+import BulkCostingDialog from './components/BulkCostingDialog'
+import BulkAssignDialog from './components/BulkAssignDialog'
 import TemplatesPage from './components/TemplatesPage'
 import BusinessSection from './business/BusinessSection.jsx'
 import MyExpenses from './business/pages/MyExpenses.jsx'
@@ -89,6 +91,8 @@ export default function App() {
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [deleteSelectedOpen, setDeleteSelectedOpen] = useState(false)
+  const [costingOpen, setCostingOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('retrofit.sort') || 'start')
   const searchRef = useRef(null)
@@ -151,7 +155,7 @@ export default function App() {
     [activeJob, jobs],
   )
 
-  const anyOverlay = addOpen || templatesOpen || deleteAllOpen || deleteSelectedOpen || !!stageMove || !!openJob
+  const anyOverlay = addOpen || templatesOpen || deleteAllOpen || deleteSelectedOpen || costingOpen || assignOpen || !!stageMove || !!openJob
 
   // Global shortcuts: "/" or ⌘/Ctrl-K focuses search; Escape clears filters and
   // selection. Skipped while typing in a field or when an overlay owns Escape.
@@ -179,7 +183,8 @@ export default function App() {
   // Moving backward (or to the same stage) applies immediately.
   const requestStatusChange = useCallback((job, newStatus) => {
     if (!job || newStatus === job.status) return
-    if (statusIndex(newStatus) > statusIndex(job.status)) {
+    // Cancelling is never "advancing", so it skips the documents check.
+    if (!isTerminalStatus(newStatus) && statusIndex(newStatus) > statusIndex(job.status)) {
       setStageMove({ job, toStatus: newStatus })
     } else {
       updateJob(job.id, { status: newStatus })
@@ -328,6 +333,39 @@ export default function App() {
       })
     }
   }, [selected, scope, updateJob, pushToast])
+
+  // Costs/revenue applied across the selection. Whatever lands on the jobs
+  // here is what the Finance tab reads, so this is also how a batch's money
+  // gets into the books.
+  const bulkSetCosting = useCallback(async (perJob) => {
+    const results = await Promise.all(perJob.map(({ id, costing }) => updateJob(id, { costing })))
+    const failed = results.filter((ok) => ok === false).length
+    setCostingOpen(false)
+    if (failed) {
+      pushToast({ type: 'error', text: `Costed ${perJob.length - failed} of ${perJob.length} — ${failed} failed to save.` })
+    } else {
+      pushToast({ type: 'success', text: `Costs applied to ${perJob.length} job${perJob.length === 1 ? '' : 's'} — Finance updated.` })
+    }
+  }, [updateJob, pushToast])
+
+  // Merge the chosen roles onto each selected job, leaving roles that weren't
+  // filled in exactly as they were.
+  const bulkAssign = useCallback(async (assignments) => {
+    const ids = [...selected]
+    const results = await Promise.all(
+      ids.map((id) => {
+        const job = jobs.find((j) => j.id === id)
+        return updateJob(id, { assignments: { ...(job?.assignments || {}), ...assignments } })
+      }),
+    )
+    const failed = results.filter((ok) => ok === false).length
+    setAssignOpen(false)
+    if (failed) {
+      pushToast({ type: 'error', text: `Assigned ${ids.length - failed} of ${ids.length} — ${failed} failed to save.` })
+    } else {
+      pushToast({ type: 'success', text: `Assigned ${ids.length} job${ids.length === 1 ? '' : 's'}.` })
+    }
+  }, [selected, jobs, updateJob, pushToast])
 
   const bulkDelete = useCallback(async () => {
     const ids = [...selected]
@@ -642,7 +680,25 @@ export default function App() {
           onAddTag={bulkAddTag}
           onArchive={bulkArchive}
           onDelete={mayDelete ? () => setDeleteSelectedOpen(true) : null}
+          onCosts={() => setCostingOpen(true)}
+          onAssign={() => setAssignOpen(true)}
           onClear={clearSelection}
+        />
+      )}
+
+      {assignOpen && (
+        <BulkAssignDialog
+          count={selected.size}
+          onCancel={() => setAssignOpen(false)}
+          onApply={bulkAssign}
+        />
+      )}
+
+      {costingOpen && (
+        <BulkCostingDialog
+          jobs={jobs.filter((j) => selected.has(j.id))}
+          onCancel={() => setCostingOpen(false)}
+          onApply={bulkSetCosting}
         />
       )}
 

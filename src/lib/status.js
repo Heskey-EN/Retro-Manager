@@ -10,9 +10,20 @@ export const STATUSES = [
   { value: 'Coordination', label: 'Coordination / Design', color: '#e8b23a' },
   { value: 'Compiling documents', label: 'Compiling documents', color: '#e4572e' },
   { value: 'Submitted', label: 'Submitted', color: '#2e7d4f' },
+  // Cancelled is an END STATE, not a step in the pipeline: a job can reach it
+  // from anywhere, it never needs the documents check on the way in, and its
+  // money must not count towards income in Finance.
+  { value: 'Cancelled', label: 'Cancelled', color: '#6b7885', terminal: true },
 ]
 
 export const STATUS_VALUES = STATUSES.map((s) => s.value)
+
+// Stages that form the linear pipeline (everything except end states).
+export const PIPELINE_STATUSES = STATUSES.filter((s) => !s.terminal)
+
+export function isTerminalStatus(value) {
+  return STATUSES.some((s) => s.value === value && s.terminal)
+}
 
 // First stage is the default for new jobs (manual add and CSV import).
 export const DEFAULT_STATUS = STATUSES[0].value
@@ -27,7 +38,10 @@ export function statusLabel(value) {
   return found ? found.label : value
 }
 
+// Position in the pipeline. End states sit outside it and report -1, so
+// "is this job advancing?" comparisons never treat Cancelled as progress.
 export function statusIndex(value) {
+  if (isTerminalStatus(value)) return -1
   const i = STATUS_VALUES.indexOf(value)
   return i === -1 ? 0 : i
 }
