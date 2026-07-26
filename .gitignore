@@ -27,3 +27,7 @@ pnpm-debug.log*
 *.sln
 *.sw?
 .vercel
+
+# Temporary renames of .env.local used while switching modes during dev
+.env.suite-keys
+.env.local.*
