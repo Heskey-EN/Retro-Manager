@@ -14,7 +14,8 @@ const CUSTOMER_HINTS = ['customer', 'client', 'occupant', 'tenant', 'homeowner',
 const MEASURE_HINTS = ['measure', 'work type', 'works', 'installation', 'product', 'scope']
 const START_HINTS = ['start', 'install', 'begin', 'scheduled', 'date', 'visit', 'survey']
 const END_HINTS = ['end', 'finish', 'complete', 'completion', 'due', 'target']
-const PRICE_HINTS = ['price', '£', 'gbp', 'amount', 'cost', 'fee', 'value', 'charge', 'total']
+// "Paid" is a price header in the wild — it means "amount paid".
+const PRICE_HINTS = ['price', '£', 'gbp', 'paid', 'amount', 'cost', 'fee', 'value', 'charge', 'total', 'invoiced']
 const STATUS_HINTS = ['status', 'stage', 'progress', 'state']
 
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -40,7 +41,11 @@ export function mapStatus(value, fallback) {
   const s = norm(value)
   if (!s) return fallback
   if (/(cancel|abort|dead|lost)/.test(s)) return 'Cancelled'
-  if (/(lodged|done|complete|submitted|finish|closed)/.test(s)) return 'Submitted'
+  // Money first: "paid" is more specific than the completion words below,
+  // several of which it often appears alongside.
+  if (/(paid|settled|invoicepaid)/.test(s)) return 'Paid'
+  if (/(finish|finalis|finaliz|closed)/.test(s)) return 'Finished'
+  if (/(lodged|done|complete|submitted)/.test(s)) return 'Submitted'
   if (/(compil|document|paperwork)/.test(s)) return 'Compiling documents'
   if (/(coordinat|design)/.test(s)) return 'Coordination'
   if (/(assess|survey|visit|inspect)/.test(s)) return 'Assessment'
@@ -55,18 +60,41 @@ export function parsePrice(value) {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+// Header matching in tiers, because a loose substring match on a short hint
+// grabs the wrong column: "id" is inside "Paid", so a column of prices was
+// being claimed as the job reference. Short hints must match the whole
+// header; only hints of 4+ characters may match as a substring.
+const MIN_SUBSTRING_HINT = 4
+
 function pickColumn(headers, hints, exclude = []) {
   const excluded = new Set(exclude)
+  const free = headers.filter((h) => !excluded.has(h))
+
+  // '£' and friends normalise to nothing — compare those raw.
+  for (const hint of hints) {
+    if (norm(hint)) continue
+    const raw = free.find((h) => String(h).includes(hint))
+    if (raw) return raw
+  }
+  // 1. whole-header match
   for (const hint of hints) {
     const n = norm(hint)
-    // '£' normalises to '' — match it against the raw header instead, so a
-    // column headed " £" is still found.
-    if (!n) {
-      const raw = headers.find((h) => !excluded.has(h) && String(h).includes(hint))
-      if (raw) return raw
-      continue
-    }
-    const match = headers.find((h) => !excluded.has(h) && norm(h).includes(n))
+    if (!n) continue
+    const exact = free.find((h) => norm(h) === n)
+    if (exact) return exact
+  }
+  // 2. header starts with the hint
+  for (const hint of hints) {
+    const n = norm(hint)
+    if (!n) continue
+    const starts = free.find((h) => norm(h).startsWith(n))
+    if (starts) return starts
+  }
+  // 3. substring, long hints only
+  for (const hint of hints) {
+    const n = norm(hint)
+    if (n.length < MIN_SUBSTRING_HINT) continue
+    const match = free.find((h) => norm(h).includes(n))
     if (match) return match
   }
   return null
@@ -325,7 +353,7 @@ export function parseCsv(input, { batchId } = {}) {
           const measureCol = pickColumn(headers, MEASURE_HINTS, [addressCol, refCol, postcodeCol])
           const customerCol = pickColumn(headers, CUSTOMER_HINTS, [addressCol, refCol, postcodeCol, measureCol])
           const statusCol = pickColumn(headers, STATUS_HINTS, [addressCol, refCol, postcodeCol, measureCol, customerCol])
-          const priceCol = pickColumn(headers, PRICE_HINTS, [addressCol, refCol, postcodeCol, measureCol, customerCol, statusCol])
+          let priceCol = pickColumn(headers, PRICE_HINTS, [addressCol, refCol, postcodeCol, measureCol, customerCol, statusCol])
           const startCol = pickColumn(headers, START_HINTS, [refCol, postcodeCol, statusCol, priceCol])
           const endCol = pickColumn(headers, END_HINTS, [startCol, refCol, postcodeCol, statusCol, priceCol])
 
@@ -338,6 +366,16 @@ export function parseCsv(input, { batchId } = {}) {
           const taken = new Set(
             [addressCol, refCol, postcodeCol, measureCol, customerCol, statusCol, priceCol, startCol, endCol].filter(Boolean),
           )
+          // A header can lie: "Paid" might be a yes/no column, not money. If
+          // the column a name matched isn't actually numeric, drop it and let
+          // the content sniffer find the real one.
+          const numericEnough = (col) =>
+            col && share(rows.map((r) => r[col]), (v) => /^[£$€]?\s*[\d,]+(\.\d+)?$/.test(String(v).trim())) >= 0.6
+          if (priceCol && !numericEnough(priceCol)) {
+            taken.delete(priceCol)
+            priceCol = null
+          }
+
           const filledRoles = new Set(
             Object.entries({ addressCol, postcodeCol, statusCol, priceCol, startCol })
               .filter(([, v]) => v)

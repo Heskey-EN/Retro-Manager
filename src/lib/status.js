@@ -10,6 +10,9 @@ export const STATUSES = [
   { value: 'Coordination', label: 'Coordination / Design', color: '#e8b23a' },
   { value: 'Compiling documents', label: 'Compiling documents', color: '#e4572e' },
   { value: 'Submitted', label: 'Submitted', color: '#2e7d4f' },
+  // The two steps after submission: the work is finished, then the money is in.
+  { value: 'Finished', label: 'Finished', color: '#1f5e39' },
+  { value: 'Paid', label: 'Paid', color: '#0e7c66' },
   // Cancelled is an END STATE, not a step in the pipeline: a job can reach it
   // from anywhere, it never needs the documents check on the way in, and its
   // money must not count towards income in Finance.

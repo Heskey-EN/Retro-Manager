@@ -36,7 +36,10 @@ function convert(rows) {
         price: revenue,
         // The manager pipeline has no "paid" notion — Submitted counts as
         // done-awaiting-payment, everything earlier as booked.
-        status: r.status === 'Submitted' ? 'done' : 'booked',
+        // Finance tracks money, so the stage maps onto its own three states:
+        // Paid = in the bank, Submitted/Finished = done but awaiting payment,
+        // anything earlier = still booked.
+        status: r.status === 'Paid' ? 'paid' : (r.status === 'Submitted' || r.status === 'Finished') ? 'done' : 'booked',
         notes: 'Synced from the Jobs tab',
       })
     }
