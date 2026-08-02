@@ -18,6 +18,7 @@ import BulkActionsBar from './components/BulkActionsBar'
 import BulkCostingDialog from './components/BulkCostingDialog'
 import BulkAssignDialog from './components/BulkAssignDialog'
 import DashboardSection from './dashboard/DashboardSection'
+import ImportReview from './components/ImportReview'
 import TemplatesPage from './components/TemplatesPage'
 import BusinessSection from './business/BusinessSection.jsx'
 import MyExpenses from './business/pages/MyExpenses.jsx'
@@ -99,6 +100,7 @@ export default function App() {
   const [deleteSelectedOpen, setDeleteSelectedOpen] = useState(false)
   const [costingOpen, setCostingOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
+  const [importReview, setImportReview] = useState(null)
   const [toast, setToast] = useState(null)
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('retrofit.sort') || 'start')
   const searchRef = useRef(null)
@@ -161,7 +163,7 @@ export default function App() {
     [activeJob, jobs],
   )
 
-  const anyOverlay = addOpen || templatesOpen || deleteAllOpen || deleteSelectedOpen || costingOpen || assignOpen || !!stageMove || !!openJob
+  const anyOverlay = addOpen || templatesOpen || deleteAllOpen || deleteSelectedOpen || costingOpen || assignOpen || !!importReview || !!stageMove || !!openJob
 
   // Global shortcuts: "/" or ⌘/Ctrl-K focuses search; Escape clears filters and
   // selection. Skipped while typing in a field or when an overlay owns Escape.
@@ -459,7 +461,7 @@ export default function App() {
           {section === 'jobs' && (
             <>
               <button className="btn" onClick={() => setTemplatesOpen(true)}>Templates</button>
-              <CsvUpload variant="compact" onJobs={addJobs} onToast={pushToast} />
+              <CsvUpload variant="compact" onJobs={addJobs} onToast={pushToast} onReview={setImportReview} />
               <button className="btn btn--primary" onClick={() => setAddOpen(true)}>
                 <Icon name="plus" /> Add job
               </button>
@@ -503,7 +505,7 @@ export default function App() {
                 <button className="btn btn--primary btn--lg" onClick={() => setAddOpen(true)}>
                   <Icon name="plus" /> Add a property
                 </button>
-                <CsvUpload variant="dropzone" onJobs={addJobs} onToast={pushToast} />
+                <CsvUpload variant="dropzone" onJobs={addJobs} onToast={pushToast} onReview={setImportReview} />
               </div>
             </div>
           </section>
@@ -722,6 +724,31 @@ export default function App() {
           count={selected.size}
           onCancel={() => setDeleteSelectedOpen(false)}
           onConfirm={bulkDelete}
+        />
+      )}
+
+      {importReview && (
+        <ImportReview
+          parsed={importReview}
+          existingJobs={jobs}
+          onCancel={() => setImportReview(null)}
+          onApply={async ({ created, updates }) => {
+            if (created.length) await addJobs(created)
+            const results = await Promise.all(
+              updates.map((u) => updateJob(u.job.id, u.patch)),
+            )
+            const failed = results.filter((ok) => ok === false).length
+            setImportReview(null)
+            const parts = []
+            if (created.length) parts.push(`added ${created.length}`)
+            if (updates.length) parts.push(`topped up ${updates.length - failed}`)
+            pushToast({
+              type: failed ? 'error' : 'success',
+              text: failed
+                ? `Imported, but ${failed} update${failed === 1 ? '' : 's'} failed to save.`
+                : `Import done — ${parts.join(' and ')}.`,
+            })
+          }}
         />
       )}
 

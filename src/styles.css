@@ -354,6 +354,43 @@ button { font-family: inherit; }
 .modal__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .modal__hint { font-size: 12.5px; color: var(--muted); margin: -6px 0 0; }
 
+/* ---------- Import review ---------- */
+/* The base .modal is overflow:hidden with no height cap, which is fine for a
+   short form but traps a long list — this variant scrolls its middle. */
+.modal--tall { width: min(760px, 100%); max-height: min(86vh, 900px); display: flex; flex-direction: column; }
+.importrev__body { overflow-y: auto; padding: 4px 24px 8px; display: grid; gap: 14px; }
+.importrev__foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+}
+.importrev__cols { display: flex; flex-wrap: wrap; gap: 6px; }
+.importrev__col { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--pill); font-size: 11.5px; background: var(--surface-2); }
+.importrev__col-label { color: var(--muted); }
+.importrev__col-name { font-family: var(--mono); }
+.importrev__guess { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--brand-ink); background: var(--brand-wash); padding: 1px 5px; border-radius: 3px; }
+.importrev__tallies { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.importrev__tally { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r2); font-size: 13px; cursor: pointer; background: var(--surface); }
+.importrev__tally.is-empty { opacity: 0.55; cursor: default; }
+.importrev__tally input { width: 17px; height: 17px; accent-color: var(--brand); }
+.importrev__tally-n { font-family: var(--mono); font-size: 19px; font-weight: 700; }
+.importrev__section { display: grid; gap: 6px; }
+.importrev__h { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin: 0; }
+.importrev__list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r2); max-height: 260px; overflow-y: auto; }
+.importrev__row { display: grid; gap: 3px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.importrev__row:last-child { border-bottom: none; }
+.importrev__row-title { font-weight: 600; font-size: 13px; }
+.importrev__fills { display: flex; flex-wrap: wrap; gap: 5px; }
+.importrev__fill { font-size: 11.5px; color: var(--muted); background: var(--surface-2); border-radius: 4px; padding: 1px 6px; }
+.importrev__fill strong { color: var(--ink); font-weight: 600; }
+.importrev__conflicts { font-size: 11.5px; color: var(--amber-ink, #9a6f12); }
+.importrev__note { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin: 0; }
+.importrev__more { color: var(--muted); font-size: 12px; }
+@media (max-width: 720px) {
+  .modal--tall { max-height: 92vh; }
+  .importrev__body, .importrev__foot { padding-left: 16px; padding-right: 16px; }
+}
+
 /* Who's on the job */
 .assign { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .card__people { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }

@@ -6,12 +6,43 @@ const ACCEPT = '.csv,.xlsx,.xls,.xlsm,text/csv,application/vnd.openxmlformats-of
 
 // Spreadsheet importer (CSV + Excel). Renders either as a compact toolbar button
 // or a large drag-and-drop dropzone (the empty state), sharing one parse path.
-export default function CsvUpload({ onJobs, onToast, variant = 'compact' }) {
+export default function CsvUpload({ onJobs, onToast, onReview, variant = 'compact' }) {
   const inputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
 
+  // With a review handler the file is parsed and handed over for approval —
+  // nothing is written until the user has seen what it would do. Without one
+  // (older callers) it imports straight away, as before.
+  async function handleFilesForReview(fileList) {
+    const files = Array.from(fileList || []).filter((f) => /\.(csv|xlsx|xls|xlsm)$/i.test(f.name))
+    if (!files.length) {
+      onToast?.({ type: 'error', text: 'Please choose a CSV or Excel (.xlsx/.xls) file.' })
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
+    setBusy(true)
+    try {
+      const file = files[0]
+      const { jobs, mapping } = await parseFile(file, { batchId: `${file.name}-${Date.now()}` })
+      if (!jobs.length) {
+        onToast?.({ type: 'error', text: `No rows found in ${file.name}.` })
+        return
+      }
+      onReview({ jobs, mapping, fileName: file.name })
+      if (files.length > 1) {
+        onToast?.({ type: 'success', text: `Reviewing ${files.length === 2 ? 'the first of 2 files' : `the first of ${files.length} files`} — import them one at a time.` })
+      }
+    } catch (err) {
+      onToast?.({ type: 'error', text: `Couldn't read that file: ${err?.message || err}` })
+    } finally {
+      setBusy(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
   async function handleFiles(fileList) {
+    if (onReview) return handleFilesForReview(fileList)
     const files = Array.from(fileList || [])
     if (!files.length) return
 
