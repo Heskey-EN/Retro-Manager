@@ -112,6 +112,7 @@ export default function DashboardSection({ jobs, addJobs, onOpenJob, onToast }) 
 
       {addJobOpen && (
         <QuickAddJob
+          jobs={jobs}
           onCreate={addJobs}
           onClose={() => setAddJobOpen(false)}
           onAdded={(n) => onToast?.({ type: 'success', text: `Added ${n} job${n === 1 ? '' : 's'}.` })}

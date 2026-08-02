@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Loader2, MapPin, Plus, Trash2, Copy, Check, Share2, Route } from 'lucide-react'
 import { Modal, Field } from '../business/components/ui.jsx'
 import { DEFAULT_STATUS } from '../lib/status'
@@ -14,6 +14,26 @@ const input =
   'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-brand-blue focus:outline-none focus:ring-1 focus:ring-brand-blue'
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
+
+// "Auto" picks the next free slot on the chosen day: an hour after the last
+// job already booked that day, or 09:00 if the day is empty. Shown in the UI
+// before saving, so it's a suggestion you can see rather than a surprise.
+const DAY_STARTS_AT = '09:00'
+const SLOT_MINUTES = 60
+function autoTimeFor(dateIso, jobs) {
+  const taken = (jobs || [])
+    .filter((j) => !j.archived && String(j.start_date || '').slice(0, 10) === dateIso)
+    .map((j) => j?.data?.Time)
+    .filter((t) => /^\d{1,2}:\d{2}$/.test(t || ''))
+    .map((t) => {
+      const [h, m] = t.split(':')
+      return Number(h) * 60 + Number(m)
+    })
+  if (!taken.length) return DAY_STARTS_AT
+  const next = Math.max(...taken) + SLOT_MINUTES
+  if (next >= 18 * 60) return DAY_STARTS_AT // spilled past the working day
+  return `${String(Math.floor(next / 60)).padStart(2, '0')}:${String(next % 60).padStart(2, '0')}`
+}
 
 // A job row for the store. Only real columns at the top level — anything else
 // goes in `data`, because one unknown key fails the whole insert.
@@ -83,7 +103,7 @@ function FeeRows({ fees, setFees }) {
 
 /* ── One job ─────────────────────────────────────────────────────────── */
 
-function SingleJob({ onCreate, onDone }) {
+function SingleJob({ onCreate, onDone, jobs }) {
   const [form, setForm] = useState({
     address: '', postcode: '', customer: '', date: todayIso(), time: '', price: '', notes: '',
   })
@@ -92,6 +112,8 @@ function SingleJob({ onCreate, onDone }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  // Recomputed as the day changes, so the suggestion always fits that day.
+  const suggested = useMemo(() => autoTimeFor(form.date, jobs), [form.date, jobs])
 
   async function submit(e) {
     e.preventDefault()
@@ -102,7 +124,7 @@ function SingleJob({ onCreate, onDone }) {
     setBusy(true)
     setError('')
     try {
-      await onCreate([toJob({ ...form, time: autoTime ? '' : form.time, fees })])
+      await onCreate([toJob({ ...form, time: autoTime ? suggested : form.time, fees })])
       onDone(1)
     } catch (err) {
       setError(err?.message || 'Could not add the job.')
@@ -137,14 +159,14 @@ function SingleJob({ onCreate, onDone }) {
           <div className="space-y-1.5">
             <input
               type="time"
-              className={`${input} ${autoTime ? 'opacity-50' : ''}`}
-              value={autoTime ? '' : form.time}
-              disabled={autoTime}
+              className={input}
+              value={autoTime ? suggested : form.time}
+              readOnly={autoTime}
               onChange={set('time')}
             />
             <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
               <input type="checkbox" className="h-4 w-4 accent-ember" checked={autoTime} onChange={(e) => setAutoTime(e.target.checked)} />
-              Auto
+              Auto {autoTime && <span className="text-slate-400">· next free slot</span>}
             </label>
           </div>
         </Field>
@@ -403,7 +425,7 @@ function MultiJob({ onCreate, onDone }) {
 
 /* ── Shell ───────────────────────────────────────────────────────────── */
 
-export default function QuickAddJob({ onCreate, onClose, onAdded }) {
+export default function QuickAddJob({ onCreate, onClose, onAdded, jobs }) {
   const [mode, setMode] = useState('one')
 
   const done = (n) => {
@@ -426,7 +448,7 @@ export default function QuickAddJob({ onCreate, onClose, onAdded }) {
         ))}
       </div>
       {mode === 'one'
-        ? <SingleJob onCreate={onCreate} onDone={done} />
+        ? <SingleJob onCreate={onCreate} onDone={done} jobs={jobs} />
         : <MultiJob onCreate={onCreate} onDone={done} />}
     </Modal>
   )
