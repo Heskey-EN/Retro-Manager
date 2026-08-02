@@ -190,7 +190,7 @@ function SuiteGate({ children }) {
           Business finances are only available to Organisation Admins. If you think
           you should have access, ask your admin.
         </p>
-        <a href="#/" className="btn-outline w-full rounded-lg">
+        <a href="#/jobs" className="btn-outline w-full rounded-lg">
           Back to your jobs
         </a>
       </GateShell>

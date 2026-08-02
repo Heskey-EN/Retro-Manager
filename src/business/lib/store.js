@@ -310,6 +310,22 @@ export function setManagerLinked(next) {
 const isLinkedJob = (id) => managerLinked.jobs.some((x) => x.id === id)
 const isLinkedExpense = (id) => managerLinked.expenses.some((x) => x.id === id)
 
+// Connect the business store if it isn't already, so somewhere OTHER than the
+// Finance tab (the Dashboard's quick-add) can write to it safely.
+//
+// This matters: until initCloud has run, cloudOrgId is null and persist()
+// silently writes to this device's pre-suite localStorage blob instead of the
+// organisation's cloud row — no error, nobody else sees it, and the entry is
+// thrown away the moment initCloud later adopts the cloud data. Anything that
+// writes must await this first.
+export async function ensureBusinessReady(orgId) {
+  if (!supabase || !orgId) return // local mode: the localStorage blob IS the store
+  await initCloud(orgId)
+  initTeamExpenses(orgId).catch(() => {}) // non-fatal
+}
+
+export const isCloudReady = () => !supabase || Boolean(cloudOrgId)
+
 // The device's pre-suite localStorage data (for the one-time cloud upload).
 export function localSnapshot() {
   try {

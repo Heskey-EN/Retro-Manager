@@ -17,18 +17,24 @@ import StageMoveDialog from './components/StageMoveDialog'
 import BulkActionsBar from './components/BulkActionsBar'
 import BulkCostingDialog from './components/BulkCostingDialog'
 import BulkAssignDialog from './components/BulkAssignDialog'
+import DashboardSection from './dashboard/DashboardSection'
 import TemplatesPage from './components/TemplatesPage'
 import BusinessSection from './business/BusinessSection.jsx'
 import MyExpenses from './business/pages/MyExpenses.jsx'
 
-// Top-level sections, routed by location.hash: '#/' = jobs (the original Job
-// Manager), '#/finance…' = the merged-in Business Hub (Finance tab, admins
-// only in suite mode), '#/my-expenses' = worker expense logging.
+// Top-level sections, routed by location.hash:
+//   '#/'            = Dashboard — the landing tab (quick add + what's coming up)
+//   '#/jobs'        = the Job Manager board
+//   '#/finance…'    = the merged-in Business Hub (admins only in suite mode)
+//   '#/my-expenses' = worker expense logging
+// The fallthrough is Dashboard, which also covers arriving with NO hash at all
+// (the Hub launcher links to the bare origin).
 function sectionFromHash() {
   const h = window.location.hash
   if (h.startsWith('#/finance')) return 'finance'
   if (h.startsWith('#/my-expenses')) return 'my-expenses'
-  return 'jobs'
+  if (h.startsWith('#/jobs')) return 'jobs'
+  return 'dashboard'
 }
 
 const SORTS = [
@@ -424,7 +430,8 @@ export default function App() {
           Eco Futures <span className="accent">RetroManager</span>
         </a>
         <nav className="topbar__nav" aria-label="Sections">
-          <a className={`topbar__navlink${section === 'jobs' ? ' is-active' : ''}`} href="#/">Jobs</a>
+          <a className={`topbar__navlink${section === 'dashboard' ? ' is-active' : ''}`} href="#/">Dashboard</a>
+          <a className={`topbar__navlink${section === 'jobs' ? ' is-active' : ''}`} href="#/jobs">Jobs</a>
           {showFinanceTab && (
             <a className={`topbar__navlink${section === 'finance' ? ' is-active' : ''}`} href="#/finance">Finance</a>
           )}
@@ -462,6 +469,14 @@ export default function App() {
         </div>
       </header>
 
+      {section === 'dashboard' && (
+        <DashboardSection
+          jobs={jobs}
+          addJobs={addJobs}
+          onOpenJob={(job) => { setActiveJob(job); window.location.hash = '#/jobs' }}
+          onToast={pushToast}
+        />
+      )}
       {section === 'finance' && <BusinessSection />}
       {section === 'my-expenses' && <WorkerExpensesRoute />}
 
@@ -747,7 +762,7 @@ function WorkerExpensesRoute() {
               ? 'Ask your admin to switch on expense logging for your account.'
               : 'Expense logging is part of the suite login — your jobs are all on the Jobs tab.'}
         </p>
-        <a className="btn-primary inline-flex rounded-lg" href={isAdmin ? '#/finance/expenses' : '#/'}>
+        <a className="btn-primary inline-flex rounded-lg" href={isAdmin ? '#/finance/expenses' : '#/jobs'}>
           {isAdmin ? 'Open Finance expenses' : 'Back to your jobs'}
         </a>
       </div>

@@ -200,7 +200,7 @@ function EditExpenseModal({ expense, onView, onClose }) {
           This cost comes from the costing on <strong>{expense._linkedJob || 'a job'}</strong> in
           the Jobs tab. Edit the job's costing there and Finance updates automatically.
         </p>
-        <a href="#/" className="btn-primary mt-4 w-full rounded-lg">
+        <a href="#/jobs" className="btn-primary mt-4 w-full rounded-lg">
           Open the Jobs tab
         </a>
       </Modal>

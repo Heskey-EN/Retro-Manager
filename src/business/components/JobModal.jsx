@@ -45,7 +45,7 @@ export default function JobModal({ job, initialDate, initialType, onClose }) {
           revenue and costs flow into Finance automatically. To change the figures, open the job
           there and edit its costing.
         </p>
-        <a href="#/" className="btn-primary mt-4 w-full rounded-lg">
+        <a href="#/jobs" className="btn-primary mt-4 w-full rounded-lg">
           Open the Jobs tab
         </a>
       </Modal>

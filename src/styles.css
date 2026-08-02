@@ -513,7 +513,8 @@ button { font-family: inherit; }
 .confirm__actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* ---------- Toast ---------- */
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); color: #fff; padding: 11px 18px; border-radius: var(--pill); box-shadow: var(--sh-3); font-size: 13.5px; z-index: 100; max-width: 90vw; animation: toastIn 0.2s ease; }
+/* bottom clears the iPhone home indicator (env() is 0 elsewhere). */
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); color: #fff; padding: 11px 18px; border-radius: var(--pill); box-shadow: var(--sh-3); font-size: 13.5px; z-index: 100; max-width: 90vw; animation: toastIn 0.2s ease; }
 @keyframes toastIn { from { transform: translate(-50%, 10px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
 .toast--success { background: var(--good-strong); }
 .toast--error { background: var(--danger); }
@@ -526,6 +527,24 @@ button { font-family: inherit; }
   .shell { padding: 16px; }
   .topbar { padding: 10px 16px; }
   .topbar__sub { display: none; }
+
+  /* Phone chrome. The bar is a fixed-height nowrap flex row, so a third tab
+     plus the action cluster used to push the page into horizontal scroll.
+     Let it stack, and let the tab row scroll sideways on its own. */
+  .topbar__inner {
+    height: auto; flex-wrap: wrap; gap: 8px; padding: 8px 16px;
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+  .topbar__title { font-size: 17px; }
+  .topbar__nav {
+    order: 3; width: 100%; margin-left: 0;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .topbar__nav::-webkit-scrollbar { display: none; }
+  .topbar__navlink { padding: 9px 14px; } /* ~40px tall: thumb-sized */
+  .topbar__actions { gap: 6px; }
+  .board__toolbar { gap: 8px; }
   .modal__row { grid-template-columns: 1fr; }
   .drawer__dates { grid-template-columns: 1fr 1fr; }
   .jobview__grid { grid-template-columns: 1fr; }
@@ -611,7 +630,7 @@ a.topbar__title:hover { color: var(--brand-ink); }
 .selectall input { accent-color: var(--brand); cursor: pointer; margin: 0; }
 
 .bulkbar {
-  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 55;
+  position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 55;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center;
   background: var(--navy); color: #fff; padding: 10px 12px 10px 18px; border-radius: var(--pill);
   box-shadow: var(--sh-3); max-width: calc(100vw - 32px); animation: toastIn 0.18s ease;

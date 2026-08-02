@@ -7,14 +7,16 @@ import './tailwind.css'
 import './styles.css'
 import './business/business.css'
 
-// The app lives at '#/' now. Self-heal old '#/app' and '#/admin' bookmarks
-// (user management moved to the Hub at ecofutures.uk/retrofit-suite/team).
+// Self-heal old '#/app' and '#/admin' bookmarks (user management moved to the
+// Hub at ecofutures.uk/retrofit-suite/team). Both were Job Manager URLs, so
+// they land on the jobs board — '#/' is the Dashboard now, and sending an old
+// bookmark there would quietly change what it does.
 // Listens for hashchange too, since a same-document hash-only navigation
 // (e.g. a bookmark clicked while the tab is already open) never re-runs
 // this module's top-level code.
 function healHash() {
   if (window.location.hash.startsWith('#/app') || window.location.hash.startsWith('#/admin')) {
-    window.location.replace('#/')
+    window.location.replace('#/jobs')
   }
 }
 healHash()

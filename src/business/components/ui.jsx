@@ -28,8 +28,11 @@ export function Field({ label, children, className = '' }) {
   )
 }
 
+// text-base (16px) is deliberate: iOS Safari zooms the whole page whenever a
+// focused input's font-size is under 16px, which makes every form on a phone
+// feel broken.
 export const inputCls =
-  'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-blue focus:outline-none focus:ring-1 focus:ring-brand-blue'
+  'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-brand-blue focus:outline-none focus:ring-1 focus:ring-brand-blue'
 
 export function StatCard({ label, value, sub, accent = 'text-navy' }) {
   return (
