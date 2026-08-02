@@ -1,123 +1,131 @@
-# Retrofit Job Management Tool
+# RetroManager
 
-A job management system for **Eco Futures**. Add jobs by hand or upload a CSV,
-see them as cards in a list, view their timelines on a calendar, track each job
-through the retrofit workflow, and attach documents — all stored locally in the
-browser with no backend required.
+The internal tool Eco Futures runs on: retrofit jobs on one side, the money on
+the other, one login, one place.
 
-## What it does
+**Live:** https://retromanager.ecofutures.uk · **Repo:** `Heskey-EN/Retro-Manager`
 
-- **Add jobs** — a manual form (name, address, postcode, status, dates) or a CSV
-  upload (drag-and-drop, parsed in-browser with Papa Parse).
-- **Job list** — one card per job, searchable and filterable by status.
-- **Calendar timeline** — a lightweight Gantt-style view of dated jobs.
-- **Retrofit workflow statuses** — Booking · Assessment · Coordination ·
-  Compiling documents · Submitted.
-- **Documents per job** — upload files (PDFs etc.) and attach links. Each
-  document is filed into a folder per status, with a **Master** folder that shows
-  everything for the job.
-- **Local-first storage** — jobs and documents (including uploaded files) live in
-  the browser via **IndexedDB**, synced across tabs on the same machine. No
-  accounts, no server, no monthly cost.
+It is the merge of two apps that used to be separate — the Retrofit Job Manager
+(`jobs.ecofutures.uk`) and the Business Tracker (`business.ecofutures.uk`).
+Both are retired; this replaces them.
 
-## Quick start
+---
+
+## The tabs
+
+| Tab | Who sees it | What it's for |
+|---|---|---|
+| **Dashboard** | everyone | The landing page. Add a job or an expense in a few taps, see what's coming up. Built phone-first. |
+| **Jobs** | everyone | The full board: pipeline, search, multi-select, documents, costing, spreadsheet import. |
+| **Finance** | Organisation Admins (level 3–4) | Calendar, week-by-week takings, UK tax estimate, expenses, invoices. |
+| *Expenses* | levels 1–2 *if permitted* | A worker's own expense log. Takes the place of the Finance tab for them. |
+
+Everyone lands on `#/`. Jobs is `#/jobs`, Finance is `#/finance`.
+
+## The two ideas worth knowing
+
+**1. Money entered on a job flows into Finance by itself.**
+A job's `costing` (`{ revenue, items }`) is read live by the Finance tab —
+revenue becomes income on the job's start date, cost items become "Job costs"
+expenses. Nothing is copied: edit the job and Finance updates. Those rows are
+read-only in Finance and can never be written into the Finance data.
+See `src/business/lib/managerLink.js`.
+
+**2. Access level decides what you see; RLS decides what you get.**
+The four tiers come from the Eco Futures Hub (1 Office Worker · 2 Senior
+Worker · 3 Organisation Admin · 4 Master Admin). Hidden buttons are a
+convenience. The real enforcement is Row Level Security in the shared Supabase
+project — never rely on the UI to keep someone out.
+
+## Two modes, always
+
+| | Suite mode | Local mode |
+|---|---|---|
+| **When** | `VITE_HUB_SUPABASE_*` env vars set | no env vars |
+| **Sign-in** | shared `.ecofutures.uk` cookie from the Hub | none |
+| **Jobs** | shared Supabase table, realtime | this browser's IndexedDB |
+| **Finance** | org-wide cloud data | this browser's localStorage + a passcode |
+
+Local mode is not a fallback waiting to be deleted — it is how the app runs
+with no setup at all. Every feature must work in both.
+
+## The job pipeline
+
+```
+Booking → Assessment → Coordination / Design → Compiling documents
+        → Submitted → Finished → Paid          (+ Cancelled, outside the flow)
+```
+
+`Cancelled` is an end state, not a seventh step: it can be reached from
+anywhere, skips the documents check, and its revenue is excluded from Finance
+(its costs stay — they were really spent). `Paid` counts as money received;
+`Finished` still counts as owed.
+
+## Running it
 
 ```bash
 npm install
-npm run dev
+npm run dev      # local mode
+npm run build
 ```
 
-Open http://localhost:5173. Click **+ Add job** to create one by hand, or drag in
-`sample-data/jobs-sample.csv`. Everything persists locally between sessions.
+For suite mode locally, create `.env.local` (gitignored):
 
-## Storage & the backend layer
+```
+VITE_HUB_SUPABASE_URL=https://<hub-project>.supabase.co
+VITE_HUB_SUPABASE_ANON_KEY=<publishable key>
+```
 
-This app is part of the **Eco Futures Retrofit Suite** and runs on the suite's
-shared HUB Supabase project: sign in once at
-[ecofutures.uk/retrofit-suite](https://ecofutures.uk/retrofit-suite) and the
-session carries here through a cookie scoped to `.ecofutures.uk`. Jobs are
-org-scoped (`org_id` + RLS) with real-time sync; what you can do follows your
-suite access level (1 office · 2 senior, can delete jobs · 3 org admin ·
-4 master). The backend stays pluggable
-([`src/lib/jobsStore.js`](src/lib/jobsStore.js)) — with no env vars set the
-app falls back to LOCAL mode (IndexedDB, per-browser) for offline dev.
+Those are public client values. The `service_role` key must never appear in
+this repo or in any `VITE_` variable.
 
-## Connecting to the suite (Supabase)
+## Deploying
 
-1. The hub project's schema comes from the EcoFutures repo — run
-   `supabase/hub/0004_jobs.sql` there (see that repo's `supabase/hub/README.md`).
-2. Copy `.env.example` to `.env` and fill in the HUB project's URL and
-   publishable key:
+Vercel, from `main`. Set the two env vars on the project — **they are baked in
+at build time, so changing them does nothing until you redeploy.**
 
-   ```
-   VITE_HUB_SUPABASE_URL=https://HUB-PROJECT.supabase.co
-   VITE_HUB_SUPABASE_ANON_KEY=your-publishable-key
-   ```
+Migrations live in the **EcoFutures** repo under `supabase/hub/` (copies in
+`supabase-hub-reference/` here). Run them in the hub project's SQL editor:
 
-3. Restart `npm run dev`. The header badge switches from **Local mode** to
-   **Live sync**. Sign in through the Hub (locally: run the EcoFutures dev
-   server and set `VITE_SUITE_HUB_URL=http://localhost:5180` — localhost
-   cookies are shared across ports).
+| | |
+|---|---|
+| `0004_jobs.sql` | the jobs table |
+| `0005_business.sql` | Finance data |
+| `0007_team_expenses.sql` | worker expense logging |
+| `0008_job_assignments.sql` | people on jobs |
 
-   Note: this syncs **jobs**. Uploaded documents currently stay in local
-   IndexedDB; moving file storage to a hosted bucket (e.g. Supabase Storage) is a
-   follow-up.
-
-## Deploying to Vercel
-
-1. Push this repo to GitHub (already configured for
-   `Heskey-EN/RetrofitManagementTool`).
-2. Import the repo at [vercel.com/new](https://vercel.com/new). Vercel
-   auto-detects Vite.
-3. Add the two `VITE_HUB_SUPABASE_*` environment variables in the Vercel
-   project settings.
-4. Add the custom domain **jobs.ecofutures.uk** (Project → Settings →
-   Domains) — the shared login cookie only reaches the app on an
-   `ecofutures.uk` subdomain.
-5. Deploy. The included `vercel.json` handles the SPA build and routing.
-
-## How CSV columns are mapped
-
-The UI is intentionally generic, so only a few things are auto-detected:
-
-- **Title** — first column whose name looks like a job/name/reference/address.
-- **Start date** — first date-like column (start/install/scheduled/date…).
-- **End date** — a separate end/finish/completion/due column if present.
-
-Every original column is preserved and shown in full on the job detail panel.
-UK-style `DD/MM/YYYY` dates are understood, along with ISO and common formats.
-
-## Project structure
+## Where things are
 
 ```
 src/
+  App.jsx              routing between sections + the Jobs board
+  dashboard/           the landing tab (mobile-first, Tailwind)
+  business/            the whole Finance tab, ported from the Business Tracker
+  components/          the Jobs UI
   lib/
-    idb.js              IndexedDB wrapper (jobs + documents stores)
-    jobsStore.js        Pluggable backend: local (IndexedDB) or Supabase
-    documentsStore.js   Per-job files + links, filed into status folders
-    csv.js              Papa Parse wrapper + column/date detection
-    status.js           Retrofit workflow statuses and colours
-    supabaseClient.js   Supabase client (only used if env vars are set)
-  hooks/
-    useJobs.js          Loads, subscribes, and mutates jobs
-    useDocuments.js     Loads and mutates one job's documents
-  components/           Upload, add-job modal, list, cards, timeline,
-                        detail drawer, documents panel
-  App.jsx               Layout, tabs, stats
-supabase/schema.sql     Optional: run in a Supabase project for multi-user sync
-sample-data/            Example CSV
+    jobsStore.js       jobs: Supabase or IndexedDB behind one interface
+    csv.js             spreadsheet parsing + column detection
+    importMatch.js     duplicate detection and gap filling
+    route.js           multi-job route planning (a planner, NOT a router)
+    status.js          the pipeline stages
 ```
 
-## Roadmap (next)
+## House rules
 
-- **Multi-user sync** — connect a hosted backend (Firebase / PocketBase /
-  Supabase) so 40–50 users share data live, plus hosted file storage.
-- Retrofit-specific fields: measures, install dates, compliance details.
-- Auth with per-user / per-organisation access.
-- Branding and refined UI.
+- **Never let the two design systems share a class name.** `src/styles.css`
+  (the Jobs UI) is hand-rolled and *unlayered*, so every selector in it beats
+  every Tailwind utility everywhere in the app. Its `.grid` and `.card` once
+  hijacked the Tailwind-styled Finance tab and rendered the whole section as
+  one giant column. They are `.job-grid` / `.job-card` now — prefix new
+  jobs-UI classes.
+- **Inputs must be ≥16px**, or iOS zooms the page when you tap one.
+- **A job insert with an unknown key fails the entire batch** (PostgREST).
+  Only real columns at the top level; everything else goes in `data`.
+- **`await ensureBusinessReady(orgId)` before writing Finance data** from
+  outside the Finance tab, or the write silently lands in stale local data and
+  is thrown away.
+- **Verify layout with computed styles, not page text.** The two worst bugs in
+  this project's history both read perfectly as text and were catastrophic on
+  screen.
 
-## Tech
-
-- Vite + React, deployable to Vercel (~£20/mo). Currently no backend cost —
-  storage is local (IndexedDB). A hosted backend would be added when live
-  multi-user sync is needed.
+Why each rule exists, and what else has bitten: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
