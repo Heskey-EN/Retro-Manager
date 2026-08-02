@@ -19,6 +19,7 @@ import BulkCostingDialog from './components/BulkCostingDialog'
 import BulkAssignDialog from './components/BulkAssignDialog'
 import DashboardSection from './dashboard/DashboardSection'
 import ImportReview from './components/ImportReview'
+import { patchFor } from './lib/importMatch'
 import TemplatesPage from './components/TemplatesPage'
 import BusinessSection from './business/BusinessSection.jsx'
 import MyExpenses from './business/pages/MyExpenses.jsx'
@@ -732,16 +733,16 @@ export default function App() {
           parsed={importReview}
           existingJobs={jobs}
           onCancel={() => setImportReview(null)}
-          onApply={async ({ created, updates }) => {
+          onApply={async ({ created, updates, overwrite }) => {
             if (created.length) await addJobs(created)
             const results = await Promise.all(
-              updates.map((u) => updateJob(u.job.id, u.patch)),
+              updates.map((u) => updateJob(u.job.id, patchFor(u, overwrite))),
             )
             const failed = results.filter((ok) => ok === false).length
             setImportReview(null)
             const parts = []
             if (created.length) parts.push(`added ${created.length}`)
-            if (updates.length) parts.push(`topped up ${updates.length - failed}`)
+            if (updates.length) parts.push(`${overwrite ? 'updated' : 'topped up'} ${updates.length - failed}`)
             pushToast({
               type: failed ? 'error' : 'success',
               text: failed

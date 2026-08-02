@@ -25,9 +25,22 @@ function houseKey(address) {
 // Two jobs are the same property when the postcode matches and the house
 // part matches. With no postcode on either side, fall back to the full
 // address text so an import into an address-only list still de-duplicates.
+// A UK postcode at the start of an address, e.g. "FY1 3RH -7 Henthorne".
+const LEADING_PC = /^\s*([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\s*[-–—,:]?\s*(.*)$/i
+
 export function jobKey(job) {
-  const address = job?.data?.Address || job?.title || ''
-  const post = pc(job?.postcode)
+  const raw = job?.data?.Address || job?.title || ''
+  let post = pc(job?.postcode)
+  let address = raw
+  // Jobs added before the importer learned to split "POSTCODE - street" keep
+  // the whole thing in the title with no postcode field. Pull it apart here
+  // too, or the same property keys differently depending on when it was
+  // created — which is exactly how duplicates slip through.
+  const m = LEADING_PC.exec(raw)
+  if (m) {
+    if (!post) post = pc(m[1])
+    address = m[2] || raw
+  }
   return post ? `${post}|${houseKey(address)}` : `addr|${squash(address)}`
 }
 
@@ -57,7 +70,9 @@ function planFor(existing, incoming) {
       patch[f.key] = after
       fills.push({ label: f.label, value: after })
     } else if (squash(before) !== squash(after)) {
-      conflicts.push({ label: f.label, mine: before, theirs: after })
+      // `key`/`value` are what an overwrite would write, so the caller can
+      // choose the file's version without recomputing anything.
+      conflicts.push({ key: f.key, label: f.label, mine: before, theirs: after, value: after })
     }
   }
 
@@ -69,7 +84,14 @@ function planFor(existing, incoming) {
       patch.costing = { ...(existing.costing || {}), revenue: incomingRevenue, items: existing.costing?.items || [] }
       fills.push({ label: 'Price', value: `£${incomingRevenue.toFixed(2)}` })
     } else if (Math.abs(currentRevenue - incomingRevenue) > 0.005) {
-      conflicts.push({ label: 'Price', mine: `£${currentRevenue.toFixed(2)}`, theirs: `£${incomingRevenue.toFixed(2)}` })
+      conflicts.push({
+        key: 'costing',
+        label: 'Price',
+        mine: `£${currentRevenue.toFixed(2)}`,
+        theirs: `£${incomingRevenue.toFixed(2)}`,
+        // Keep any cost lines already on the job — only the revenue changes.
+        value: { ...(existing.costing || {}), revenue: incomingRevenue, items: existing.costing?.items || [] },
+      })
     }
   }
 
@@ -89,10 +111,11 @@ function planFor(existing, incoming) {
     }
   }
 
-  // Status is informational only — moving a job's stage from a spreadsheet
-  // could undo real work, so it is reported and never applied automatically.
+  // Status is informational by default — moving a job's stage from a
+  // spreadsheet could undo real work, so it is reported rather than applied
+  // unless the user explicitly chooses to take the file's version.
   if (incoming.status && existing.status && incoming.status !== existing.status) {
-    conflicts.push({ label: 'Stage', mine: existing.status, theirs: incoming.status })
+    conflicts.push({ key: 'status', label: 'Stage', mine: existing.status, theirs: incoming.status, value: incoming.status })
   }
 
   return { patch, fills, conflicts }
@@ -134,4 +157,16 @@ export function planImport(rows, existing) {
   }
 
   return { created, updates, unchanged, dupesInFile }
+}
+
+// The patch to actually write for one matched job. By default that's the
+// fill-the-blanks patch; with `overwrite` the file's version of anything that
+// disagreed is applied on top.
+export function patchFor(entry, overwrite) {
+  if (!overwrite || !entry.conflicts?.length) return entry.patch || {}
+  const patch = { ...(entry.patch || {}) }
+  for (const c of entry.conflicts) {
+    if (c.key && c.value !== undefined) patch[c.key] = c.value
+  }
+  return patch
 }

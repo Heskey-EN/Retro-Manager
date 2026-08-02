@@ -384,6 +384,15 @@ button { font-family: inherit; }
 .importrev__fill { font-size: 11.5px; color: var(--muted); background: var(--surface-2); border-radius: 4px; padding: 1px 6px; }
 .importrev__fill strong { color: var(--ink); font-weight: 600; }
 .importrev__conflicts { font-size: 11.5px; color: var(--amber-ink, #9a6f12); }
+.importrev__conflicts.is-overwriting { color: var(--brand-ink); }
+.importrev__overwrite {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface);
+}
+.importrev__overwrite.is-on { border-color: var(--brand); background: var(--brand-wash); }
+.importrev__overwrite input { width: 17px; height: 17px; margin-top: 1px; accent-color: var(--brand); }
+.importrev__overwrite > span { display: grid; gap: 2px; font-size: 13px; }
+.importrev__overwrite-note { font-size: 11.5px; color: var(--muted); }
 .importrev__note { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin: 0; }
 .importrev__more { color: var(--muted); font-size: 12px; }
 @media (max-width: 720px) {

@@ -170,13 +170,14 @@ export default function Dashboard() {
           >
             <CalendarOff size={16} /> Block out
           </button>
-          <button
-            onClick={() => setShowImport(true)}
-            className="btn-outline rounded-lg !px-5 !py-3"
-            title="Import jobs from a CSV file"
-          >
-            <Upload size={16} /> Import CSV
-          </button>
+          {/* Spreadsheet import lives on the Jobs tab, and only there. This
+              button used to run a SECOND importer that wrote into Finance's
+              own calendar store — so imported work never reached the Jobs
+              tab, and it had no duplicate checking at all. One importer,
+              feeding the whole system. */}
+          <a href="#/jobs" className="btn-outline rounded-lg !px-5 !py-3" title="Import a spreadsheet on the Jobs tab">
+            <Upload size={16} /> Import a spreadsheet
+          </a>
         </div>
       </div>
 

@@ -439,6 +439,22 @@ export function deleteJob(id) {
   })
 }
 
+// Remove several of this section's own calendar entries at once. Used by the
+// cleanup that clears entries duplicating real jobs — a CSV imported through
+// the old Finance-only importer landed here instead of the jobs table, so the
+// same property could end up listed twice.
+export function deleteJobs(ids) {
+  const drop = new Set(ids)
+  if (!drop.size) return 0
+  let removed = 0
+  mutate((d) => {
+    const before = d.jobs.length
+    d.jobs = d.jobs.filter((x) => !drop.has(x.id))
+    removed = before - d.jobs.length
+  })
+  return removed
+}
+
 // ---- Expenses --------------------------------------------------------
 // expense: { id, date, category, description, amount }
 

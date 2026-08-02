@@ -40,10 +40,19 @@ export default function ImportReview({ parsed, existingJobs, onCancel, onApply }
 
   const [addNew, setAddNew] = useState(true)
   const [applyUpdates, setApplyUpdates] = useState(true)
+  // Off by default: filling blanks is always safe, replacing what you already
+  // have is not.
+  const [overwrite, setOverwrite] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const total = (addNew ? plan.created.length : 0) + (applyUpdates ? plan.updates.length : 0)
+  // With overwrite on, jobs that had nothing to FILL but did disagree become
+  // changes too.
+  const conflictOnly = plan.unchanged.filter((u) => u.conflicts.length)
+  const touched = overwrite ? [...plan.updates, ...conflictOnly] : plan.updates
+  const conflictCount = [...plan.updates, ...conflictOnly].reduce((n, u) => n + u.conflicts.length, 0)
+
+  const total = (addNew ? plan.created.length : 0) + (applyUpdates ? touched.length : 0)
 
   async function apply() {
     setBusy(true)
@@ -51,7 +60,8 @@ export default function ImportReview({ parsed, existingJobs, onCancel, onApply }
     try {
       await onApply({
         created: addNew ? plan.created : [],
-        updates: applyUpdates ? plan.updates : [],
+        updates: applyUpdates ? touched : [],
+        overwrite,
       })
     } catch (err) {
       setError(err?.message || 'Import failed.')
@@ -83,20 +93,34 @@ export default function ImportReview({ parsed, existingJobs, onCancel, onApply }
               <span className="importrev__tally-n">{plan.created.length}</span>
               <span>new job{plan.created.length === 1 ? '' : 's'} to add</span>
             </label>
-            <label className={`importrev__tally${plan.updates.length ? '' : ' is-empty'}`}>
+            <label className={`importrev__tally${touched.length ? '' : ' is-empty'}`}>
               <input
-                type="checkbox" checked={applyUpdates && plan.updates.length > 0}
-                disabled={!plan.updates.length}
+                type="checkbox" checked={applyUpdates && touched.length > 0}
+                disabled={!touched.length}
                 onChange={(e) => setApplyUpdates(e.target.checked)}
               />
-              <span className="importrev__tally-n">{plan.updates.length}</span>
-              <span>existing job{plan.updates.length === 1 ? '' : 's'} to top up</span>
+              <span className="importrev__tally-n">{touched.length}</span>
+              <span>existing job{touched.length === 1 ? '' : 's'} to update</span>
             </label>
             <span className="importrev__tally is-empty">
-              <span className="importrev__tally-n">{plan.unchanged.length}</span>
+              <span className="importrev__tally-n">{plan.unchanged.length - (overwrite ? conflictOnly.length : 0)}</span>
               <span>already up to date</span>
             </span>
           </div>
+
+          {conflictCount > 0 && (
+            <label className={`importrev__overwrite${overwrite ? ' is-on' : ''}`}>
+              <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
+              <span>
+                <strong>Use the file where it disagrees</strong>
+                <span className="importrev__overwrite-note">
+                  {overwrite
+                    ? `Replacing ${conflictCount} value${conflictCount === 1 ? '' : 's'} already in the system with the file's.`
+                    : `${conflictCount} value${conflictCount === 1 ? '' : 's'} differ. Left off, yours are kept.`}
+                </span>
+              </span>
+            </label>
+          )}
 
           {plan.dupesInFile.length > 0 && (
             <p className="importrev__note">
@@ -106,26 +130,34 @@ export default function ImportReview({ parsed, existingJobs, onCancel, onApply }
             </p>
           )}
 
-          {plan.updates.length > 0 && (
+          {touched.length > 0 && (
             <section className="importrev__section">
-              <h3 className="importrev__h">Jobs that will gain missing details</h3>
+              <h3 className="importrev__h">
+                {overwrite ? 'Jobs that will change' : 'Jobs that will gain missing details'}
+              </h3>
               <ul className="importrev__list">
-                {plan.updates.map((u) => (
+                {touched.map((u) => (
                   <li key={u.job.id} className="importrev__row">
                     <span className="importrev__row-title">{u.job.title}</span>
-                    <span className="importrev__fills">
-                      {u.fills.map((f) => (
-                        <span key={f.label} className="importrev__fill">
-                          {f.label} <strong>{String(f.value)}</strong>
-                        </span>
-                      ))}
-                    </span>
+                    {/* Conflict-only entries (only reachable with overwrite on)
+                        carry no fills, so this must tolerate an absent list. */}
+                    {u.fills?.length > 0 && (
+                      <span className="importrev__fills">
+                        {u.fills.map((f) => (
+                          <span key={f.label} className="importrev__fill">
+                            {f.label} <strong>{String(f.value)}</strong>
+                          </span>
+                        ))}
+                      </span>
+                    )}
                     {u.conflicts.length > 0 && (
-                      <span className="importrev__conflicts">
-                        kept yours:{' '}
+                      <span className={`importrev__conflicts${overwrite ? ' is-overwriting' : ''}`}>
+                        {overwrite ? 'replacing: ' : 'kept yours: '}
                         {u.conflicts.map((c) => (
                           <span key={c.label}>
-                            {c.label} <strong>{String(c.mine)}</strong> (file says {String(c.theirs)}){' '}
+                            {c.label}{' '}
+                            <strong>{String(overwrite ? c.theirs : c.mine)}</strong>{' '}
+                            ({overwrite ? `was ${String(c.mine)}` : `file says ${String(c.theirs)}`}){' '}
                           </span>
                         ))}
                       </span>
@@ -136,11 +168,11 @@ export default function ImportReview({ parsed, existingJobs, onCancel, onApply }
             </section>
           )}
 
-          {plan.unchanged.some((u) => u.conflicts.length) && (
+          {conflictOnly.length > 0 && !overwrite && (
             <section className="importrev__section">
               <h3 className="importrev__h">Already in the system, but the file disagrees</h3>
               <ul className="importrev__list">
-                {plan.unchanged.filter((u) => u.conflicts.length).map((u) => (
+                {conflictOnly.map((u) => (
                   <li key={u.job.id} className="importrev__row">
                     <span className="importrev__row-title">{u.job.title}</span>
                     <span className="importrev__conflicts">
@@ -153,7 +185,9 @@ export default function ImportReview({ parsed, existingJobs, onCancel, onApply }
                   </li>
                 ))}
               </ul>
-              <p className="importrev__note">Nothing here is changed — edit the job if the file is right.</p>
+              <p className="importrev__note">
+                Nothing here is changed — tick “Use the file where it disagrees” above if the file is right.
+              </p>
             </section>
           )}
 

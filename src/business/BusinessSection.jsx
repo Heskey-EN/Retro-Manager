@@ -19,6 +19,7 @@ import Finance from './pages/Finance.jsx'
 import Expenses from './pages/Expenses.jsx'
 import InvoicePage from './pages/InvoicePage.jsx'
 import TeamPermissionsModal from './components/TeamPermissionsModal.jsx'
+import CleanupDuplicates from './components/CleanupDuplicates.jsx'
 
 function SettingsModal({ onClose }) {
   const { settings } = useHubData()
@@ -103,6 +104,8 @@ function SettingsModal({ onClose }) {
         </div>
         {importMsg && <p className="mt-2 text-xs font-semibold text-brand-blue">{importMsg}</p>}
       </div>
+
+      <CleanupDuplicates />
     </Modal>
   )
 }
