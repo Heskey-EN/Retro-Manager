@@ -274,9 +274,25 @@ function buildTitle(row, addressCol, refCol) {
 // (.xlsx/.xls) are converted to CSV via SheetJS (loaded on demand), then run
 // through the same column-detection path as CSV, so property addresses are
 // found regardless of the source format.
+// Is this workbook bytes rather than text? Checked by signature, so a
+// spreadsheet with the wrong extension (or none) still parses: XLSX/XLSM/ODS
+// are ZIP archives ("PK"), and legacy XLS is an OLE2 compound file.
+async function isWorkbook(file) {
+  try {
+    const head = new Uint8Array(await file.slice(0, 8).arrayBuffer())
+    if (head[0] === 0x50 && head[1] === 0x4b) return true
+    if (head[0] === 0xd0 && head[1] === 0xcf && head[2] === 0x11 && head[3] === 0xe0) return true
+  } catch {
+    /* fall through to the extension check */
+  }
+  return /\.(xlsx|xlsm|xlsb|xls|xltx|xltm|ods)$/i.test(file.name || '')
+}
+
 export async function parseFile(file, opts = {}) {
-  const name = (file.name || '').toLowerCase()
-  if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm')) {
+  // Raw text handed in directly (the CSV path) has no slice/name.
+  if (typeof file === 'string' || typeof file?.slice !== 'function') return parseCsv(file, opts)
+
+  if (await isWorkbook(file)) {
     const XLSX = await import('xlsx')
     const buffer = await file.arrayBuffer()
     // cellDates + an ISO dateNF: without them SheetJS renders Excel's default
