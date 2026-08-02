@@ -60,6 +60,10 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
+/* Belt and braces for the same problem: <body> is exactly viewport-tall, so
+   anything past the fold (and iOS rubber-band overscroll) shows <html>. It
+   must be the page colour, never a framework default. */
+html { background: var(--canvas); }
 body {
   margin: 0;
   font-family: var(--font);
@@ -117,10 +121,18 @@ button { font-family: inherit; }
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .topbar__inner {
-  max-width: 1240px; margin: 0 auto; height: 64px;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 0 24px;
+  max-width: 1240px; margin: 0 auto;
+  /* Wraps at every width, not just on phones. It was a fixed-height nowrap
+     row, so between ~720px and ~1000px — tablets and small laptops — the
+     action cluster ran off the right-hand edge, taking "Add job" with it and
+     forcing the whole page to scroll sideways. Growing a row taller is
+     always better than putting a button out of reach. */
+  min-height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px 16px;
+  padding: 10px 24px;
 }
+.topbar__actions { flex-wrap: wrap; justify-content: flex-end; }
 .topbar__title {
   font-family: var(--font-display); font-weight: 700; font-size: 20px;
   color: #fff; letter-spacing: -0.01em; text-decoration: none; white-space: nowrap;

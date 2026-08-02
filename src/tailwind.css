@@ -9,7 +9,12 @@
    utilities stay unprefixed. */
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: light --default, dark --prefersdark;
+  /* Light only. With `dark --prefersdark` enabled, a phone or laptop set to
+     dark mode got daisyUI's dark base on <html> — and since <body> is only
+     viewport-tall, that dark navy showed through under the page content, so
+     scrolling looked like the design changed colour halfway down. The app
+     has no dark theme of its own, so it must never opt into one. */
+  themes: light --default;
   prefix: "dsy-";
 }
 
