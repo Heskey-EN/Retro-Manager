@@ -44,12 +44,10 @@ export function mapStatus(value, fallback) {
   // Money first: "paid" is more specific than the completion words below,
   // several of which it often appears alongside.
   if (/(paid|settled|invoicepaid)/.test(s)) return 'Paid'
-  if (/(finish|finalis|finaliz|closed)/.test(s)) return 'Finished'
-  if (/(lodged|done|complete|submitted)/.test(s)) return 'Submitted'
-  if (/(compil|document|paperwork)/.test(s)) return 'Compiling documents'
-  if (/(coordinat|design)/.test(s)) return 'Coordination'
-  if (/(assess|survey|visit|inspect)/.test(s)) return 'Assessment'
-  if (/(pending|booked|booking|scheduled|new)/.test(s)) return 'Booking'
+  if (/(finish|finalis|finaliz|closed)/.test(s)) return 'Done'
+  if (/(lodged|done|complete|submitted)/.test(s)) return 'Done'
+  if (/(assess|survey|visit|inspect)/.test(s)) return 'Booked'
+  if (/(pending|booked|booking|scheduled|new)/.test(s)) return 'Booked'
   return fallback
 }
 

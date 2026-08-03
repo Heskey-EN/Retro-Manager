@@ -41,7 +41,7 @@ function GateShell({ children }) {
             <Leaf size={22} />
           </span>
           <div>
-            <div className="font-display text-lg font-bold leading-tight">RetroManager</div>
+            <div className="font-display text-lg font-bold leading-tight">Assessment Manager</div>
             <div className="text-xs font-bold uppercase tracking-widest text-slate-500">Finance</div>
           </div>
         </div>

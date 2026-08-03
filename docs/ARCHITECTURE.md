@@ -1,4 +1,4 @@
-# How RetroManager is put together
+# How Assessment Manager is put together
 
 Written for whoever picks this up next — including me. The README says what the
 app does; this says why it is shaped the way it is, and which parts will bite.

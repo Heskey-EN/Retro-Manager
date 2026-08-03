@@ -1,5 +1,5 @@
 // The Finance section — the whole Business Hub (calendar dashboard, finance,
-// expenses, invoices) folded into RetroManager as one gated tab. Renders
+// expenses, invoices) folded into Assessment Manager as one gated tab. Renders
 // under the app topbar; FinanceGate decides who gets in (level 3+ in suite
 // mode, the per-device passcode in local mode).
 

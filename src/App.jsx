@@ -3,17 +3,16 @@ import { useJobs } from './hooks/useJobs'
 import { useAuth } from './hooks/useAuth'
 import { storeMode } from './lib/jobsStore'
 import { HUB_URL } from './lib/supabaseClient'
-import { statusIndex, statusLabel, isTerminalStatus } from './lib/status'
+import { statusIndex, statusLabel, normalizeStatus } from './lib/status'
 import { jobReference, jobPostcode, jobCustomer, jobMeasure, jobAddress } from './lib/display'
 import Icon from './components/Icon'
-import Pipeline from './components/Pipeline'
+import StatusBar from './components/StatusBar'
 import CsvUpload from './components/CsvUpload'
 import JobList from './components/JobList'
 import ProjectsView from './components/ProjectsView'
 import CalendarTimeline from './components/CalendarTimeline'
 import JobView from './components/JobView'
 import AddJobModal from './components/AddJobModal'
-import StageMoveDialog from './components/StageMoveDialog'
 import BulkActionsBar from './components/BulkActionsBar'
 import BulkCostingDialog from './components/BulkCostingDialog'
 import BulkAssignDialog from './components/BulkAssignDialog'
@@ -41,7 +40,7 @@ function sectionFromHash() {
 
 const SORTS = [
   { value: 'start', label: 'Soonest date' },
-  { value: 'stage', label: 'Pipeline stage' },
+  { value: 'stage', label: 'Status' },
   { value: 'address', label: 'Address A–Z' },
   { value: 'updated', label: 'Recently updated' },
   { value: 'added', label: 'Recently added' },
@@ -91,7 +90,6 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState(null)
   const [activeJob, setActiveJob] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [stageMove, setStageMove] = useState(null)
   const [scope, setScope] = useState('active')
   const [selectedTags, setSelectedTags] = useState([])
   const [selected, setSelected] = useState(() => new Set())
@@ -139,7 +137,8 @@ export default function App() {
     const base = scope === 'archived' ? jobs.filter((j) => j.archived) : activeJobs
     const q = query.trim().toLowerCase()
     return base.filter((job) => {
-      if (statusFilter && job.status !== statusFilter) return false
+      // normalizeStatus so jobs still carrying old pipeline names filter correctly.
+      if (statusFilter && normalizeStatus(job.status) !== statusFilter) return false
       if (selectedTags.length && !selectedTags.some((t) => (job.tags || []).includes(t))) return false
       if (!q) return true
       const haystack = [
@@ -164,7 +163,7 @@ export default function App() {
     [activeJob, jobs],
   )
 
-  const anyOverlay = addOpen || templatesOpen || deleteAllOpen || deleteSelectedOpen || costingOpen || assignOpen || !!importReview || !!stageMove || !!openJob
+  const anyOverlay = addOpen || templatesOpen || deleteAllOpen || deleteSelectedOpen || costingOpen || assignOpen || !!importReview || !!openJob
 
   // Global shortcuts: "/" or ⌘/Ctrl-K focuses search; Escape clears filters and
   // selection. Skipped while typing in a field or when an overlay owns Escape.
@@ -188,16 +187,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [anyOverlay, hasFilters, selected.size, clearFilters])
 
-  // Advancing a job to a later stage requires confirming documents are in place.
-  // Moving backward (or to the same stage) applies immediately.
+  // Booked / Done / Paid / Cancelled apply straight away. The old pipeline
+  // made you confirm a documents checklist before advancing a stage — that
+  // belonged to a paperwork workflow this app no longer models.
   const requestStatusChange = useCallback((job, newStatus) => {
     if (!job || newStatus === job.status) return
-    // Cancelling is never "advancing", so it skips the documents check.
-    if (!isTerminalStatus(newStatus) && statusIndex(newStatus) > statusIndex(job.status)) {
-      setStageMove({ job, toStatus: newStatus })
-    } else {
-      updateJob(job.id, { status: newStatus })
-    }
+    updateJob(job.id, { status: newStatus })
   }, [updateJob])
 
   const archiveJob = useCallback((job) => {
@@ -430,7 +425,7 @@ export default function App() {
       <header className="topbar">
         <div className="topbar__inner">
         <a className="topbar__title" href="#/">
-          Eco Futures <span className="accent">RetroManager</span>
+          Eco Futures <span className="accent">Assessment Manager</span>
         </a>
         <nav className="topbar__nav" aria-label="Sections">
           <a className={`topbar__navlink${section === 'dashboard' ? ' is-active' : ''}`} href="#/">Dashboard</a>
@@ -489,7 +484,7 @@ export default function App() {
 
       <main className="shell">
         {jobs.length > 0 && (
-          <Pipeline jobs={activeJobs} activeStatus={statusFilter} onSelect={setStatusFilter} />
+          <StatusBar jobs={activeJobs} activeStatus={statusFilter} onSelect={setStatusFilter} />
         )}
 
         {showEmptyHero ? (
@@ -666,18 +661,6 @@ export default function App() {
           onCreate={async (job) => {
             const created = await addJobs([job])
             if (created && created[0]) setActiveJob(created[0])
-          }}
-        />
-      )}
-
-      {stageMove && (
-        <StageMoveDialog
-          job={stageMove.job}
-          toStatus={stageMove.toStatus}
-          onCancel={() => setStageMove(null)}
-          onConfirm={() => {
-            updateJob(stageMove.job.id, { status: stageMove.toStatus })
-            setStageMove(null)
           }}
         />
       )}

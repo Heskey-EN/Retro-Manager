@@ -61,7 +61,7 @@ export default function TeamPermissionsModal({ onClose }) {
   return (
     <Modal title="Who can log expenses?" onClose={onClose}>
       <p className="mb-4 text-sm text-slate-500">
-        Ticked team members get an <strong>Expenses</strong> tab in RetroManager where they can
+        Ticked team members get an <strong>Expenses</strong> tab in Assessment Manager where they can
         log what they've spent — it lands straight in your Finance figures. They never see
         finances, invoices or anyone else's expenses.
       </p>

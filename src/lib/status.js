@@ -1,50 +1,62 @@
-// The retrofit project workflow. `value` is what's stored on a job (stable);
-// `label` is what's shown. Keeping them separate lets us rename a stage without
-// migrating existing jobs or their document folders.
-// Stage colours read as a progression through the workflow, drawn from the
-// Eco Futures family palette: cool blue (booked) → indigo (survey) → amber
-// (design) → ember (the compile push) → moss (submitted / done).
+// An assessment has a short life: it's booked, you do it, you get paid.
+// (Or it falls through.) That's the whole model.
+//
+// This replaced a five-stage retrofit pipeline (Booking → Assessment →
+// Coordination → Compiling documents → Submitted). Those stages described
+// paperwork moving through a process; this app is for tracking assessments
+// and the money attached to them, and these four states are the ones that
+// actually change what you do next. They also line up exactly with how
+// Finance already thinks: booked / done / paid.
 export const STATUSES = [
-  { value: 'Booking', label: 'Booking', color: '#3e77a8' },
-  { value: 'Assessment', label: 'Assessment', color: '#6e62c4' },
-  { value: 'Coordination', label: 'Coordination / Design', color: '#e8b23a' },
-  { value: 'Compiling documents', label: 'Compiling documents', color: '#e4572e' },
-  { value: 'Submitted', label: 'Submitted', color: '#2e7d4f' },
-  // The two steps after submission: the work is finished, then the money is in.
-  { value: 'Finished', label: 'Finished', color: '#1f5e39' },
-  { value: 'Paid', label: 'Paid', color: '#0e7c66' },
-  // Cancelled is an END STATE, not a step in the pipeline: a job can reach it
-  // from anywhere, it never needs the documents check on the way in, and its
-  // money must not count towards income in Finance.
+  { value: 'Booked', label: 'Booked', color: '#3e77a8' },
+  { value: 'Done', label: 'Done', color: '#e8b23a' },
+  { value: 'Paid', label: 'Paid', color: '#2e7d4f' },
+  // Cancelled is an end state, not a step: reachable from anywhere, and its
+  // money is excluded from income (costs already spent still count).
   { value: 'Cancelled', label: 'Cancelled', color: '#6b7885', terminal: true },
 ]
 
 export const STATUS_VALUES = STATUSES.map((s) => s.value)
-
-// Stages that form the linear pipeline (everything except end states).
 export const PIPELINE_STATUSES = STATUSES.filter((s) => !s.terminal)
+export const DEFAULT_STATUS = 'Booked'
 
-export function isTerminalStatus(value) {
-  return STATUSES.some((s) => s.value === value && s.terminal)
+// Jobs created under the old pipeline still carry its names. Rather than
+// migrating the database, every read normalises — so old and new data behave
+// identically and nothing has to be rewritten.
+const LEGACY = {
+  Booking: 'Booked',
+  Assessment: 'Booked',
+  Coordination: 'Booked',
+  'Compiling documents': 'Booked',
+  Submitted: 'Done',
+  Finished: 'Done',
 }
 
-// First stage is the default for new jobs (manual add and CSV import).
-export const DEFAULT_STATUS = STATUSES[0].value
+export function normalizeStatus(value) {
+  if (!value) return DEFAULT_STATUS
+  if (STATUS_VALUES.includes(value)) return value
+  return LEGACY[value] || DEFAULT_STATUS
+}
+
+export function isTerminalStatus(value) {
+  return STATUSES.some((s) => s.value === normalizeStatus(value) && s.terminal)
+}
 
 export function statusColor(value) {
-  const found = STATUSES.find((s) => s.value === value)
+  const found = STATUSES.find((s) => s.value === normalizeStatus(value))
   return found ? found.color : '#6b7885'
 }
 
 export function statusLabel(value) {
-  const found = STATUSES.find((s) => s.value === value)
+  const found = STATUSES.find((s) => s.value === normalizeStatus(value))
   return found ? found.label : value
 }
 
-// Position in the pipeline. End states sit outside it and report -1, so
-// "is this job advancing?" comparisons never treat Cancelled as progress.
+// Position in the booked → done → paid run. End states sit outside it and
+// report -1, so "is this advancing?" never treats Cancelled as progress.
 export function statusIndex(value) {
-  if (isTerminalStatus(value)) return -1
-  const i = STATUS_VALUES.indexOf(value)
+  const v = normalizeStatus(value)
+  if (isTerminalStatus(v)) return -1
+  const i = STATUS_VALUES.indexOf(v)
   return i === -1 ? 0 : i
 }

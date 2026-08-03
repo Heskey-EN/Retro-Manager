@@ -1,4 +1,4 @@
-# RetroManager
+# Assessment Manager
 
 The internal tool Eco Futures runs on: retrofit jobs on one side, the money on
 the other, one login, one place.
@@ -16,7 +16,7 @@ Both are retired; this replaces them.
 | Tab | Who sees it | What it's for |
 |---|---|---|
 | **Dashboard** | everyone | The landing page. Add a job or an expense in a few taps, see what's coming up. Built phone-first. |
-| **Jobs** | everyone | The full board: pipeline, search, multi-select, documents, costing, spreadsheet import. |
+| **Jobs** | everyone | The full board: status filters, search, multi-select, documents, costing, spreadsheet import. |
 | **Finance** | Organisation Admins (level 3–4) | Calendar, week-by-week takings, UK tax estimate, expenses, invoices. |
 | *Expenses* | levels 1–2 *if permitted* | A worker's own expense log. Takes the place of the Finance tab for them. |
 
@@ -49,17 +49,18 @@ project — never rely on the UI to keep someone out.
 Local mode is not a fallback waiting to be deleted — it is how the app runs
 with no setup at all. Every feature must work in both.
 
-## The job pipeline
+## Assessment status
 
 ```
-Booking → Assessment → Coordination / Design → Compiling documents
-        → Submitted → Finished → Paid          (+ Cancelled, outside the flow)
+Booked → Done → Paid          (+ Cancelled, outside the flow)
 ```
 
-`Cancelled` is an end state, not a seventh step: it can be reached from
-anywhere, skips the documents check, and its revenue is excluded from Finance
-(its costs stay — they were really spent). `Paid` counts as money received;
-`Finished` still counts as owed.
+Four states, matching how Finance already thinks (booked / done / paid).
+This replaced a five-stage retrofit pipeline (Booking → Assessment →
+Coordination → Compiling documents → Submitted): those stages tracked
+paperwork moving through a process, and this app tracks assessments and the
+money on them. Jobs still holding the old names are normalised on read by
+`normalizeStatus()`, so nothing had to be migrated.
 
 ## Running it
 

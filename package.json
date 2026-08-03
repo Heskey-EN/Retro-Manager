@@ -1,9 +1,9 @@
 {
-  "name": "retromanager",
+  "name": "assessment-manager",
   "private": true,
   "version": "0.2.0",
   "type": "module",
-  "description": "RetroManager — Eco Futures job management + business finance in one app. CSV upload, job pipeline, calendar, live multi-user sync, and an admin-only Finance tab (calendar, expenses, UK tax estimate, invoices).",
+  "description": "Assessment Manager — Eco Futures job management + business finance in one app. CSV upload, job pipeline, calendar, live multi-user sync, and an admin-only Finance tab (calendar, expenses, UK tax estimate, invoices).",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

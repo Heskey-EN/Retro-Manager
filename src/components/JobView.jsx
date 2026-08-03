@@ -4,7 +4,6 @@ import StatusSelect from './StatusSelect'
 import DocumentsPanel from './DocumentsPanel'
 import CostingPanel from './CostingPanel'
 import AssignPanel from './AssignPanel'
-import GeneratePanel from './GeneratePanel'
 import TagInput from './TagInput'
 import { jobAddress, jobReference, jobPostcode, jobCustomer, jobMeasure } from '../lib/display'
 
@@ -114,12 +113,6 @@ export default function JobView({ job, onClose, onUpdate, onStatusChange, onArch
           <h2 className="jobview__box-title">Costing</h2>
           <p className="jobview__box-hint">Coordination / Design — list each item and its cost, then enter the projected revenue to see the profit.</p>
           <CostingPanel key={job.id} costing={job.costing} onSave={(costing) => onUpdate(job.id, { costing })} />
-        </section>
-
-        <section className="jobview__box jobview__box--wide">
-          <h2 className="jobview__box-title">Generate documents</h2>
-          <p className="jobview__box-hint">Fill a template from this job’s data and its uploaded PDFs. The finished document is saved into Files.</p>
-          <GeneratePanel job={job} onManageTemplates={onManageTemplates} />
         </section>
 
         {extraFields.length > 0 && (

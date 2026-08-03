@@ -5,6 +5,7 @@
 // job's costing updates Finance instantly and there is nothing to keep in
 // sync by hand. Works in both modes: supabase realtime in suite mode,
 // BroadcastChannel + refresh-on-open in local mode.
+import { normalizeStatus } from '../../lib/status.js'
 import { jobsStore } from '../../lib/jobsStore.js'
 import { setManagerLinked } from './store.js'
 
@@ -16,7 +17,8 @@ function convert(rows) {
   for (const r of rows || []) {
     // A cancelled job earns nothing — its costs stay (they were really spent),
     // but its revenue must never reach the income figures or the tax estimate.
-    const cancelled = r?.status === 'Cancelled'
+    const st = normalizeStatus(r?.status)
+    const cancelled = st === 'Cancelled'
     const c = r?.costing
     if (!c) continue
     const revenue = cancelled ? 0 : Number(c.revenue) || 0
@@ -39,7 +41,7 @@ function convert(rows) {
         // Finance tracks money, so the stage maps onto its own three states:
         // Paid = in the bank, Submitted/Finished = done but awaiting payment,
         // anything earlier = still booked.
-        status: r.status === 'Paid' ? 'paid' : (r.status === 'Submitted' || r.status === 'Finished') ? 'done' : 'booked',
+        status: st === 'Paid' ? 'paid' : st === 'Done' ? 'done' : 'booked',
         notes: 'Synced from the Jobs tab',
       })
     }
