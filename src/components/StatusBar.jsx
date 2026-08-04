@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { STATUSES, normalizeStatus } from '../lib/status'
+import { FilterChip } from '../ui'
 
 // Where the assessments stand, as a row of counts you can tap to filter.
 //
@@ -15,26 +16,28 @@ export default function StatusBar({ jobs, activeStatus, onSelect }) {
   }, [jobs])
 
   return (
-    <section className="statusbar" aria-label="Filter by status">
-      <button
-        className={`statusbar__chip${!activeStatus ? ' is-active' : ''}`}
-        onClick={() => onSelect(null)}
-      >
-        <span className="statusbar__n">{jobs.length}</span>
+    <section
+      aria-label="Filter by status"
+      // The negative margin plus matching padding is not spacing: overflow-x
+      // clips, and a focus outline sits 2px OUTSIDE its chip, so without the
+      // gutter the ring on the first and last chip would be sliced off.
+      // The scrollbar itself is hidden — it is a swipe on a phone, and on a
+      // desktop it would sit under the chips as permanent grey furniture.
+      className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <FilterChip active={!activeStatus} count={jobs.length} onClick={() => onSelect(null)}>
         All
-      </button>
+      </FilterChip>
       {STATUSES.map((s) => (
-        <button
+        <FilterChip
           key={s.value}
-          className={`statusbar__chip${activeStatus === s.value ? ' is-active' : ''}`}
-          style={{ '--status-color': s.color }}
+          active={activeStatus === s.value}
+          dot={s.color}
+          count={counts[s.value]}
           onClick={() => onSelect(activeStatus === s.value ? null : s.value)}
-          aria-pressed={activeStatus === s.value}
         >
-          <span className="statusbar__dot" aria-hidden />
-          <span className="statusbar__n">{counts[s.value]}</span>
           {s.label}
-        </button>
+        </FilterChip>
       ))}
     </section>
   )

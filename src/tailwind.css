@@ -53,6 +53,31 @@
   --color-accent-yellow: #E8B23A;
   --color-accent-green: #2E7D4F;
 
+  /* ---- Added for src/ui (the shared kit) ----------------------------------
+     These are the values the jobs UI has always used from styles.css and
+     that Tailwind had no equivalent for. They are here so the kit can drop
+     styles.css without the app changing colour, and so the three near-
+     identical greys the two systems each invented (#DDE4E9 vs slate-200 vs
+     ink/10) collapse into one line colour with a name. */
+
+  /* Surfaces + neutrals */
+  --color-sunken: #EAEFF2;      /* recessed fill: hovers, tracks, table heads */
+  --color-ink-mute: #97A3AE;    /* quieter than ink-faint: placeholders, "no date" */
+  --color-line: #DDE4E9;        /* the default hairline, ~40 rules used it */
+  --color-line-strong: #C6D0D8; /* the stronger border every control carries */
+
+  /* Tints — a chip or banner background at full opacity, so it does not
+     change with whatever sits behind it (bg-ember/10 does). */
+  --color-ember-wash: #FBEBE5;
+  --color-moss-strong: #256A42; /* success toast / hover on a moss button */
+  --color-moss-wash: #E7F1EB;
+
+  /* Danger. Deliberately NOT Tailwind's red-600 (#DC2626): the app's red is
+     the muted brick that sits beside ember without clashing, and it is what
+     every destructive control in the jobs UI already uses. */
+  --color-danger: #B0342A;
+  --color-danger-wash: #F6E5E2;
+
   --font-display: "Bricolage Grotesque", system-ui, sans-serif;
   --font-sans: "Hanken Grotesk", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -61,6 +86,12 @@
 
   --shadow-card: 0 1px 2px rgba(22, 32, 43, 0.04), 0 8px 30px -12px rgba(22, 32, 43, 0.14);
   --shadow-lift: 0 12px 40px -12px rgba(22, 32, 43, 0.28);
+  /* Tailwind's shadow-sm is a black-based shadow and reads grey-blue against
+     drafting paper; this is the app's own 1px seat, used by every card. */
+  --shadow-hairline: 0 1px 2px rgba(22, 32, 43, 0.05);
+  /* Things that float over the page: modals, toasts, the bulk action bar.
+     Much deeper than shadow-lift, which is a hover state, not a layer. */
+  --shadow-overlay: 0 22px 60px -18px rgba(8, 21, 33, 0.38);
 
   --animate-fade-up: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade-in: fade-in 0.8s ease-out both;
