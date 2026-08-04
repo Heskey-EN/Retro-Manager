@@ -84,6 +84,9 @@ export function jobToEntry(job) {
     title: jobAddress(job),
     subtitle,
     colour: statusColor(status),
+    // The raw state, so callers can filter on it — statusLabel is for display
+    // and would break the moment a label is reworded.
+    status,
     statusLabel: statusLabel(status),
     cancelled,
     // Identical rule to managerLink.js: a cancelled job earns nothing. If these

@@ -5,7 +5,7 @@ import QuickAddExpense from './QuickAddExpense.jsx'
 import Calendar from '../calendar/Calendar.jsx'
 import UpNext from '../calendar/UpNext.jsx'
 import { Button, Card } from '../ui'
-import { addDays, todayISO, weekStart } from '../lib/dates.js'
+import { todayISO } from '../lib/dates.js'
 import { initManagerLink } from '../business/lib/managerLink.js'
 import { useAuth } from '../hooks/useAuth'
 
@@ -38,21 +38,6 @@ export default function DashboardSection({ jobs, addJobs, onOpenJob, onToast }) 
   const todayIso = todayISO()
 
   const activeJobs = useMemo(() => jobs.filter((j) => !j.archived), [jobs])
-
-  const stats = useMemo(() => {
-    const live = activeJobs.filter((j) => j.status !== 'Cancelled')
-    const wkStart = weekStart(todayIso)
-    const wkEnd = addDays(wkStart, 6)
-    const on = (j, from, to) => {
-      const d = j.start_date && String(j.start_date).slice(0, 10)
-      return d && d >= from && d <= to
-    }
-    return {
-      today: live.filter((j) => on(j, todayIso, todayIso)).length,
-      week: live.filter((j) => on(j, wkStart, wkEnd)).length,
-      open: live.length,
-    }
-  }, [activeJobs, todayIso])
 
   return (
     <div className="biz font-sans text-ink">
@@ -108,20 +93,20 @@ export default function DashboardSection({ jobs, addJobs, onOpenJob, onToast }) 
           )}
         </div>
 
-        {/* At a glance. pad={false} on each tile because Card's own p-4 and the
-            p-3 wanted here are both utilities — which one wins is decided by
-            stylesheet order, not by the order they appear in the className. */}
-        <div className="mb-4 grid grid-cols-3 gap-2">
-          {[
-            ['Today', stats.today],
-            ['This week', stats.week],
-            ['Open jobs', stats.open],
-          ].map(([label, value]) => (
-            <Card key={label} pad={false} className="p-3 text-center">
-              <div className="font-display text-2xl font-bold">{value}</div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{label}</div>
-            </Card>
-          ))}
+        {/* The week ahead, listed job by job. This replaced three counters
+            (Today / This week / Open jobs): a number tells you there is work
+            but not what it is, and the first thing you want off a phone in the
+            morning is the actual list. No limit — a week you can only see six
+            of is not a week you can plan from. */}
+        <div className="mb-4">
+          <UpNext
+            jobs={activeJobs}
+            title="The week ahead"
+            withinDays={7}
+            limit={null}
+            bookedOnly
+            onOpenJob={onOpenJob}
+          />
         </div>
 
         <div className="space-y-4">
@@ -134,7 +119,6 @@ export default function DashboardSection({ jobs, addJobs, onOpenJob, onToast }) 
               </Button>
             )}
           />
-          <UpNext jobs={activeJobs} onOpenJob={onOpenJob} />
         </div>
       </div>
 

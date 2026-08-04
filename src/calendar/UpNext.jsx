@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Card, CardHead, EmptyState } from '../ui'
-import { todayISO } from '../lib/dates.js'
+import { addDays, todayISO } from '../lib/dates.js'
 import { useCalendarEntries } from './useCalendarEntries.js'
 import { EntryRow } from './EntryRow.jsx'
 
@@ -13,27 +13,49 @@ import { EntryRow } from './EntryRow.jsx'
 // list, and hiding it was part of the same "each section shows its own subset"
 // problem this rebuild exists to end.
 
-const LIMIT = 6
+const DEFAULT_LIMIT = 6
 
-export default function UpNext({ jobs = [], title = 'Next up', onOpenJob, onOpenEntry, children }) {
+// `withinDays` bounds the list to a window (7 = the week ahead) and `limit`
+// null shows every entry in it. The Dashboard uses both: the week's work in
+// full is the thing you actually plan from, so it must not stop at six.
+export default function UpNext({
+  jobs = [], title = 'Next up', withinDays, limit = DEFAULT_LIMIT, bookedOnly = false,
+  onOpenJob, onOpenEntry, children,
+}) {
   const { entries, showMoney } = useCalendarEntries(jobs)
   const today = todayISO()
 
-  const upcoming = useMemo(
-    () =>
-      entries
-        // A run already under way still counts as coming up — it is happening.
-        .filter((e) => !e.cancelled && e.end >= today)
-        .sort((a, b) => a.start.localeCompare(b.start) || (a.time || '99').localeCompare(b.time || '99'))
-        .slice(0, LIMIT),
-    [entries, today],
+  // addDays, never toISOString(): the latter converts local midnight to UTC, so
+  // through BST it hands back YESTERDAY and the window closes a day early —
+  // a job on the last day of the week silently vanished from the list.
+  const until = useMemo(
+    () => (withinDays ? addDays(today, withinDays - 1) : null),
+    [today, withinDays],
   )
+
+  const upcoming = useMemo(() => {
+    const list = entries
+      // A run already under way still counts as coming up — it is happening.
+      .filter((e) => !e.cancelled && e.end >= today)
+      // A multi-day block that STARTS after the window still overlaps it if it
+      // is already running, so the window is tested against the start.
+      .filter((e) => !until || e.start <= until)
+      // Work still to do. A job already marked Done or Paid is finished, and
+      // listing it under what's coming up is noise on the one screen meant to
+      // tell you where to go next. Business entries have no status and always
+      // count as work.
+      .filter((e) => !bookedOnly || !e.status || e.status === 'Booked')
+      .sort((a, b) => a.start.localeCompare(b.start) || (a.time || '99').localeCompare(b.time || '99'))
+    return limit ? list.slice(0, limit) : list
+  }, [entries, today, until, limit])
 
   return (
     <Card pad={false}>
       <CardHead title={title} />
       {upcoming.length === 0 ? (
-        <EmptyState size="compact">Nothing booked yet.</EmptyState>
+        <EmptyState size="compact">
+          {withinDays ? 'Nothing booked in the next week.' : 'Nothing booked yet.'}
+        </EmptyState>
       ) : (
         <ul className="divide-y divide-line px-2 py-1">
           {upcoming.map((e) => (
