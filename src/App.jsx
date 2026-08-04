@@ -1,16 +1,20 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
+import { AlertTriangle, LayoutGrid, Plus, Search, Trash2 } from 'lucide-react'
 import { useJobs } from './hooks/useJobs'
 import { useAuth } from './hooks/useAuth'
 import { storeMode } from './lib/jobsStore'
 import { HUB_URL } from './lib/supabaseClient'
 import { statusIndex, statusLabel, normalizeStatus } from './lib/status'
 import { jobReference, jobPostcode, jobCustomer, jobMeasure, jobAddress } from './lib/display'
-import Icon from './components/Icon'
+import {
+  Banner, Button, EmptyState, Field, FilterChip, Input, Modal, Mono,
+  SegmentedControl, Select, SpecLabel, Toast, cx, focusRingOnDark,
+} from './ui'
 import StatusBar from './components/StatusBar'
 import CsvUpload from './components/CsvUpload'
 import JobList from './components/JobList'
 import ProjectsView from './components/ProjectsView'
-import CalendarTimeline from './components/CalendarTimeline'
+import Calendar from './calendar/Calendar'
 import JobView from './components/JobView'
 import AddJobModal from './components/AddJobModal'
 import BulkActionsBar from './components/BulkActionsBar'
@@ -45,6 +49,19 @@ const SORTS = [
   { value: 'updated', label: 'Recently updated' },
   { value: 'added', label: 'Recently added' },
 ]
+
+const VIEWS = [
+  { value: 'list', label: 'Jobs' },
+  { value: 'projects', label: 'Projects' },
+  { value: 'calendar', label: 'Calendar' },
+]
+
+// The section tabs sit on the navy chrome, where the kit's light Button tones
+// would disappear. They are links, not buttons — a tab that changes the URL
+// must be openable in a new tab.
+const navLink =
+  'inline-flex min-h-10 shrink-0 items-center rounded-[10px] px-3.5 text-sm font-semibold ' +
+  'no-underline transition-colors ' + focusRingOnDark
 
 // Order a list of jobs by the chosen key. Undated jobs sort last for date sorts.
 function sortJobs(jobs, sortBy) {
@@ -90,6 +107,8 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState(null)
   const [activeJob, setActiveJob] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
+  // The day a job is being added FOR, when it was started from a calendar cell.
+  const [addDate, setAddDate] = useState('')
   const [scope, setScope] = useState('active')
   const [selectedTags, setSelectedTags] = useState([])
   const [selected, setSelected] = useState(() => new Set())
@@ -124,6 +143,13 @@ export default function App() {
   const showFinanceTab = !configured || isAdmin
   const showMyExpensesTab = configured && !isAdmin && canSubmitExpenses
 
+  const tabs = useMemo(() => [
+    { key: 'dashboard', href: '#/', label: 'Dashboard' },
+    { key: 'jobs', href: '#/jobs', label: 'Jobs' },
+    showFinanceTab && { key: 'finance', href: '#/finance', label: 'Finance' },
+    showMyExpensesTab && { key: 'my-expenses', href: '#/my-expenses', label: 'Expenses' },
+  ].filter(Boolean), [showFinanceTab, showMyExpensesTab])
+
   const activeJobs = useMemo(() => jobs.filter((j) => !j.archived), [jobs])
   const archivedCount = jobs.length - activeJobs.length
 
@@ -157,6 +183,15 @@ export default function App() {
   }, [])
 
   const toggleTag = (t) => setSelectedTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
+
+  // Every section's calendar opens a job the same way. The hash flip is
+  // load-bearing, not cosmetic: JobView only renders inside the `section ===
+  // 'jobs'` block, so opening a job from the Dashboard or Finance without it
+  // would set the state and show nothing at all.
+  const openJobFromAnywhere = useCallback((job) => {
+    setActiveJob(job)
+    if (sectionFromHash() !== 'jobs') window.location.hash = '#/jobs'
+  }, [])
 
   const openJob = useMemo(
     () => (activeJob ? jobs.find((j) => j.id === activeJob.id) || activeJob : null),
@@ -421,49 +456,75 @@ export default function App() {
   const showEmptyHero = !loading && jobs.length === 0
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar__inner">
-        <a className="topbar__title" href="#/">
-          Eco Futures <span className="accent">Assessment Manager</span>
-        </a>
-        <nav className="topbar__nav" aria-label="Sections">
-          <a className={`topbar__navlink${section === 'dashboard' ? ' is-active' : ''}`} href="#/">Dashboard</a>
-          <a className={`topbar__navlink${section === 'jobs' ? ' is-active' : ''}`} href="#/jobs">Jobs</a>
-          {showFinanceTab && (
-            <a className={`topbar__navlink${section === 'finance' ? ' is-active' : ''}`} href="#/finance">Finance</a>
-          )}
-          {showMyExpensesTab && (
-            <a className={`topbar__navlink${section === 'my-expenses' ? ' is-active' : ''}`} href="#/my-expenses">Expenses</a>
-          )}
-        </nav>
-        <div className="topbar__actions">
-          {section === 'jobs' && (
-            <span className={`mode-chip mode-chip--${storeMode}`} title={storeMode === 'supabase' ? 'Live multi-user sync' : 'Stored locally in this browser'}>
-              <span className="mode-chip__dot" />
-              {storeMode === 'supabase' ? 'Live sync' : 'Local'}
-            </span>
-          )}
-          {configured && (
-            <a className="btn btn--ghost" href={`${HUB_URL}/retrofit-suite`} title="Back to the Retrofit Suite">
-              <Icon name="grid" size={15} /> Suite
-            </a>
-          )}
-          {isAdmin && (
-            <a className="btn btn--ghost" href={`${HUB_URL}/retrofit-suite/team`}>
-              Manage team
-            </a>
-          )}
-          {section === 'jobs' && (
-            <>
-              <button className="btn" onClick={() => setTemplatesOpen(true)}>Templates</button>
-              <CsvUpload variant="compact" onJobs={addJobs} onToast={pushToast} onReview={setImportReview} />
-              <button className="btn btn--primary" onClick={() => setAddOpen(true)}>
-                <Icon name="plus" /> Add job
-              </button>
-            </>
-          )}
-        </div>
+    <div className="flex min-h-full flex-col bg-paper font-sans text-ink">
+      {/* print:hidden so an invoice prints as just the sheet. This used to be a
+          `.topbar` rule in business.css; the class went when the header moved
+          onto utilities, and the rule silently stopped matching anything. */}
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-navy text-white print:hidden">
+        {/* The top inset is only non-zero on an iPhone added to the home
+            screen, where the status bar sits over the page. Underscores are
+            the separator Tailwind turns back into spaces — calc needs them
+            around the +, and without them this whole class emits nothing. */}
+        <div className="container-site flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 py-2 pt-[calc(0.5rem_+_env(safe-area-inset-top))] sm:min-h-16">
+          <a className="font-display text-[17px] font-bold tracking-tight text-white no-underline sm:text-xl" href="#/">
+            {/* Fixed moss accent: the header is always navy, so it must not
+                move with the page's own colours. */}
+            Eco Futures <span className="text-moss-soft">Assessment Manager</span>
+          </a>
+
+          {/* Third row on a phone, and it scrolls sideways on its own rather
+              than pushing the page into a horizontal scroll. */}
+          <nav
+            aria-label="Sections"
+            className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none] sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+          >
+            {tabs.map((t) => (
+              <a
+                key={t.key}
+                href={t.href}
+                aria-current={section === t.key ? 'page' : undefined}
+                className={cx(navLink, section === t.key ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white')}
+              >
+                {t.label}
+              </a>
+            ))}
+          </nav>
+
+          {/* One scrolling row on a phone rather than a wrapping block: the
+              actions stacked two deep and the header ate a quarter of the
+              screen. justify-start until sm, because a flex row that is both
+              overflowing and end-justified cannot be scrolled back to its
+              first item. */}
+          <div className="order-2 -mx-1 flex w-full items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&>*]:shrink-0 sm:order-none sm:mx-0 sm:ml-auto sm:w-auto sm:flex-wrap sm:justify-end sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+            {section === 'jobs' && (
+              <span
+                title={storeMode === 'supabase' ? 'Live multi-user sync' : 'Stored locally in this browser'}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.08] px-2.5 py-1 text-xs font-medium text-white/80"
+              >
+                <span className={cx('h-1.5 w-1.5 rounded-full', storeMode === 'supabase' ? 'bg-moss-soft' : 'bg-amber')} aria-hidden />
+                {storeMode === 'supabase' ? 'Live sync' : 'Local'}
+              </span>
+            )}
+            {configured && (
+              <Button as="a" tone="ghost" onDark href={`${HUB_URL}/retrofit-suite`} title="Back to the Retrofit Suite">
+                <LayoutGrid size={15} /> Suite
+              </Button>
+            )}
+            {isAdmin && (
+              <Button as="a" tone="ghost" onDark href={`${HUB_URL}/retrofit-suite/team`}>
+                Manage team
+              </Button>
+            )}
+            {section === 'jobs' && (
+              <>
+                <Button tone="ghost" onDark onClick={() => setTemplatesOpen(true)}>Templates</Button>
+                <CsvUpload variant="compact" onJobs={addJobs} onToast={pushToast} onReview={setImportReview} />
+                <Button tone="primary" onClick={() => setAddOpen(true)}>
+                  <Plus size={16} /> Add job
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -471,66 +532,117 @@ export default function App() {
         <DashboardSection
           jobs={jobs}
           addJobs={addJobs}
-          onOpenJob={(job) => { setActiveJob(job); window.location.hash = '#/jobs' }}
+          onOpenJob={openJobFromAnywhere}
           onToast={pushToast}
         />
       )}
-      {section === 'finance' && <BusinessSection />}
+      {/* Finance shows the same calendar as everywhere else, so it needs the
+          real jobs list — not just the rows it derives from their costing. */}
+      {section === 'finance' && <BusinessSection jobs={jobs} onOpenJob={openJobFromAnywhere} />}
       {section === 'my-expenses' && <WorkerExpensesRoute />}
 
       {section === 'jobs' && (
       <>
-      {error && <div className="alert" role="alert">Something went wrong: {error}</div>}
+      {/* container-site is the Dashboard's and Finance's own gutter, so all
+          three sections now line up at every width. pb clears the floating
+          bulk-actions bar. */}
+      <main className="container-site flex flex-col gap-5 py-5 pb-24">
+        {error && <Banner tone="danger">Something went wrong: {error}</Banner>}
 
-      <main className="shell">
         {jobs.length > 0 && (
           <StatusBar jobs={activeJobs} activeStatus={statusFilter} onSelect={setStatusFilter} />
         )}
 
         {showEmptyHero ? (
-          <section className="empty-hero">
-            <div className="empty-hero__inner">
-              <p className="eyebrow">Get started</p>
-              <h1 className="empty-hero__title">Start tracking retrofit jobs</h1>
-              <p className="empty-hero__lead">
-                Add a property by hand, or import a spreadsheet (CSV or Excel) to load a whole
-                batch. Each job moves through booking, assessment, coordination, compiling
-                documents and submission — with its own notes and files along the way.
-              </p>
-              <div className="empty-hero__actions">
-                <button className="btn btn--primary btn--lg" onClick={() => setAddOpen(true)}>
-                  <Icon name="plus" /> Add a property
-                </button>
+          <EmptyState
+            size="hero"
+            icon={<SpecLabel>Get started</SpecLabel>}
+            title="Start tracking assessments"
+            action={
+              <>
+                <Button tone="primary" onClick={() => setAddOpen(true)}>
+                  <Plus size={16} /> Add a property
+                </Button>
                 <CsvUpload variant="dropzone" onJobs={addJobs} onToast={pushToast} onReview={setImportReview} />
+              </>
+            }
+          >
+            Add a property by hand, or import a spreadsheet (CSV or Excel) to load a whole
+            batch. Each assessment is booked, then done, then paid — with its own notes,
+            documents and costs along the way.
+          </EmptyState>
+        ) : (
+          <section className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <SegmentedControl
+                label="View"
+                options={VIEWS}
+                value={view}
+                onChange={setView}
+                full
+                className="sm:w-auto"
+              />
+
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                <Mono className="text-sm text-ink">
+                  {sorted.length}<span className="text-ink-mute"> / {scope === 'archived' ? archivedCount : activeJobs.length}</span>
+                </Mono>
+                {(archivedCount > 0 || scope === 'archived') && (
+                  <Button
+                    size="sm"
+                    tone={scope === 'archived' ? 'primary' : 'ghost'}
+                    onClick={() => setScope(scope === 'archived' ? 'active' : 'archived')}
+                  >
+                    {scope === 'archived' ? 'Active jobs' : `Archived${archivedCount ? ` (${archivedCount})` : ''}`}
+                  </Button>
+                )}
+                {mayDelete && (
+                  <Button size="sm" tone="ghost" onClick={() => setDeleteAllOpen(true)} title="Delete all jobs">
+                    <Trash2 size={15} className="text-danger" /> Delete all
+                  </Button>
+                )}
               </div>
             </div>
-          </section>
-        ) : (
-          <section className="board">
-            <div className="board__toolbar">
-              <div className="segmented" role="tablist" aria-label="View">
-                <button
-                  role="tab" aria-selected={view === 'list'}
-                  className={`segmented__btn${view === 'list' ? ' is-active' : ''}`}
-                  onClick={() => setView('list')}
-                >Jobs</button>
-                <button
-                  role="tab" aria-selected={view === 'projects'}
-                  className={`segmented__btn${view === 'projects' ? ' is-active' : ''}`}
-                  onClick={() => setView('projects')}
-                >Projects</button>
-                <button
-                  role="tab" aria-selected={view === 'calendar'}
-                  className={`segmented__btn${view === 'calendar' ? ' is-active' : ''}`}
-                  onClick={() => setView('calendar')}
-                >Calendar</button>
-              </div>
 
-              <div className="board__right">
+            {view !== 'calendar' && (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-0 flex-1 basis-64">
+                  <Search size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute" />
+                  <Input
+                    ref={searchRef}
+                    type="search"
+                    className="pl-9 pr-12"
+                    placeholder="Search address, postcode, reference…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    aria-label="Search jobs"
+                    aria-keyshortcuts="/"
+                  />
+                  {/* Hidden on a phone: there is no key to press. */}
+                  {!query && (
+                    <kbd
+                      title="Press / to search"
+                      className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-line-strong bg-sunken px-1.5 font-mono text-[10px] text-ink-mute sm:block"
+                    >/</kbd>
+                  )}
+                </div>
+                <Select
+                  className="w-full sm:w-52"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  aria-label="Sort jobs"
+                  title="Sort jobs"
+                >
+                  {SORTS.map((s) => <option key={s.value} value={s.value}>Sort: {s.label}</option>)}
+                </Select>
                 {view === 'list' && sorted.length > 0 && (
-                  <label className="selectall" title="Select all shown">
+                  <label
+                    title="Select all shown"
+                    className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-paper-card px-3 text-sm text-ink-faint hover:text-ink"
+                  >
                     <input
                       type="checkbox"
+                      className="h-4 w-4 cursor-pointer accent-ember"
                       checked={allVisibleSelected}
                       // A part-selection shows a dash rather than an empty box,
                       // matching the project header checkboxes.
@@ -540,70 +652,26 @@ export default function App() {
                     All
                   </label>
                 )}
-                {view !== 'calendar' && (
-                  <div className="search">
-                    <span className="search__icon" aria-hidden><Icon name="search" size={15} /></span>
-                    <input
-                      ref={searchRef}
-                      type="search"
-                      placeholder="Search address, postcode, reference…"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      aria-keyshortcuts="/"
-                    />
-                    {!query && <kbd title="Press / to search">/</kbd>}
-                  </div>
-                )}
-                {view !== 'calendar' && (
-                  <select
-                    className="sortselect"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    aria-label="Sort jobs"
-                    title="Sort jobs"
-                  >
-                    {SORTS.map((s) => <option key={s.value} value={s.value}>Sort: {s.label}</option>)}
-                  </select>
-                )}
-                <span className="board__count">
-                  {sorted.length}<span className="board__count-of"> / {scope === 'archived' ? archivedCount : activeJobs.length}</span>
-                </span>
-                {(archivedCount > 0 || scope === 'archived') && (
-                  <button
-                    className={`btn btn--sm${scope === 'archived' ? ' btn--primary' : ' btn--ghost'}`}
-                    onClick={() => setScope(scope === 'archived' ? 'active' : 'archived')}
-                  >
-                    {scope === 'archived' ? 'Active jobs' : `Archived${archivedCount ? ` (${archivedCount})` : ''}`}
-                  </button>
-                )}
-                {mayDelete && (
-                  <button className="btn btn--ghost btn--sm iconbtn--danger" onClick={() => setDeleteAllOpen(true)} title="Delete all jobs">
-                    <Icon name="trash" size={15} /> Delete all
-                  </button>
-                )}
               </div>
-            </div>
+            )}
 
             {(statusFilter || allTags.length > 0) && (
-              <div className="filters">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 {statusFilter && (
-                  <span className="filter-note">
-                    Stage: <strong>{statusLabel(statusFilter)}</strong>
-                    <button className="filter-note__clear" onClick={() => setStatusFilter(null)}>clear</button>
-                  </span>
+                  <FilterChip active onClick={() => setStatusFilter(null)} title="Clear the status filter">
+                    Status: {statusLabel(statusFilter)} ✕
+                  </FilterChip>
                 )}
                 {allTags.length > 0 && (
-                  <div className="filters__tags">
-                    <span className="filters__label">Tags</span>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <SpecLabel as="span" tone="faint">Tags</SpecLabel>
                     {allTags.map((t) => (
-                      <button
-                        key={t}
-                        className={`tag tag--toggle${selectedTags.includes(t) ? ' is-on' : ''}`}
-                        onClick={() => toggleTag(t)}
-                      >{t}</button>
+                      <FilterChip key={t} active={selectedTags.includes(t)} onClick={() => toggleTag(t)}>
+                        {t}
+                      </FilterChip>
                     ))}
                     {selectedTags.length > 0 && (
-                      <button className="filter-note__clear" onClick={() => setSelectedTags([])}>clear</button>
+                      <Button size="sm" tone="ghost" onClick={() => setSelectedTags([])}>Clear tags</Button>
                     )}
                   </div>
                 )}
@@ -611,8 +679,10 @@ export default function App() {
             )}
 
             {loading ? (
-              <div className="job-grid" aria-hidden>
-                {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-card" />)}
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3.5" aria-hidden>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-[118px] animate-pulse rounded-xl bg-sunken" />
+                ))}
               </div>
             ) : view === 'list' ? (
               <JobList
@@ -638,7 +708,20 @@ export default function App() {
                 onToggleGroup={toggleGroup}
               />
             ) : (
-              <CalendarTimeline jobs={sorted} onOpen={setActiveJob} />
+              // `sorted`, not `jobs`: the status/tag/search filters apply to
+              // the calendar exactly as they did before. filterNote makes that
+              // visible, so a filtered month never reads as a missing one.
+              <Calendar
+                jobs={sorted}
+                views={['month', 'timeline']}
+                onOpenJob={setActiveJob}
+                filterNote={hasFilters ? 'Filtered view' : null}
+                renderDayActions={(iso) => (
+                  <Button tone="primary" onClick={() => { setAddDate(iso); setAddOpen(true) }}>
+                    <Plus size={16} /> Add a job
+                  </Button>
+                )}
+              />
             )}
           </section>
         )}
@@ -657,7 +740,8 @@ export default function App() {
 
       {addOpen && (
         <AddJobModal
-          onClose={() => setAddOpen(false)}
+          initialDate={addDate}
+          onClose={() => { setAddOpen(false); setAddDate('') }}
           onCreate={async (job) => {
             const created = await addJobs([job])
             if (created && created[0]) setActiveJob(created[0])
@@ -741,14 +825,15 @@ export default function App() {
       )}
 
       {toast && (
-        <div className={`toast toast--${toast.type}`} role="status">
-          <span>{toast.text}</span>
-          {toast.action && (
-            <button className="toast__action" onClick={() => { toast.action.onClick(); setToast(null) }}>
-              {toast.action.label}
-            </button>
-          )}
-        </div>
+        <Toast
+          tone={toast.type}
+          action={toast.action && {
+            label: toast.action.label,
+            onClick: () => { toast.action.onClick(); setToast(null) },
+          }}
+        >
+          {toast.text}
+        </Toast>
       )}
     </div>
   )
@@ -761,23 +846,31 @@ function WorkerExpensesRoute() {
   const { configured, isAdmin, canSubmitExpenses } = useAuth()
   if (configured && !isAdmin && canSubmitExpenses) return <MyExpenses />
   return (
-    <div className="biz font-sans text-ink">
-      <div className="container-site py-16 text-center">
-        <h1 className="mb-2 font-display text-2xl font-bold">
-          {isAdmin ? 'Expenses live in your Finance tab' : 'Expense logging isn’t enabled'}
-        </h1>
-        <p className="mb-5 text-sm text-slate-500">
-          {isAdmin
-            ? 'As an admin you manage expenses (yours and the team’s) from Finance.'
-            : configured
-              ? 'Ask your admin to switch on expense logging for your account.'
-              : 'Expense logging is part of the suite login — your jobs are all on the Jobs tab.'}
-        </p>
-        <a className="btn-primary inline-flex rounded-lg" href={isAdmin ? '#/finance/expenses' : '#/jobs'}>
-          {isAdmin ? 'Open Finance expenses' : 'Back to your jobs'}
-        </a>
-      </div>
+    <div className="container-site py-16 text-center">
+      <h1 className="font-display text-2xl font-bold">
+        {isAdmin ? 'Expenses live in your Finance tab' : 'Expense logging isn’t enabled'}
+      </h1>
+      <p className="mx-auto mt-2 mb-5 max-w-md text-sm text-ink-faint">
+        {isAdmin
+          ? 'As an admin you manage expenses (yours and the team’s) from Finance.'
+          : configured
+            ? 'Ask your admin to switch on expense logging for your account.'
+            : 'Expense logging is part of the suite login — your jobs are all on the Jobs tab.'}
+      </p>
+      <Button as="a" tone="primary" href={isAdmin ? '#/finance/expenses' : '#/jobs'}>
+        {isAdmin ? 'Open Finance expenses' : 'Back to your jobs'}
+      </Button>
     </div>
+  )
+}
+
+// The red circle both delete dialogs lead with. Big enough to register as a
+// stop sign before the words are read.
+function DangerMark() {
+  return (
+    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger-wash text-danger" aria-hidden>
+      <AlertTriangle size={22} />
+    </span>
   )
 }
 
@@ -787,35 +880,34 @@ function WorkerExpensesRoute() {
 function DeleteSelectedDialog({ count, onCancel, onConfirm }) {
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape' && !busy) onCancel() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel, busy])
-
   return (
-    <div className="modal-backdrop" onClick={() => !busy && onCancel()}>
-      <div className="modal modal--sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Delete selected jobs">
-        <div className="confirm">
-          <span className="confirm__icon"><Icon name="alert" size={22} /></span>
-          <h2 className="confirm__title">Delete {count} selected job{count === 1 ? '' : 's'}?</h2>
-          <p className="confirm__text">
-            This permanently removes {count === 1 ? 'the job and its documents' : 'these jobs and their documents'}.
-            It cannot be undone — to keep {count === 1 ? 'it' : 'them'} out of the way instead, use <strong>Archive</strong>.
-          </p>
-          <div className="confirm__actions">
-            <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
-            <button
-              className="btn btn--danger"
-              disabled={busy}
-              onClick={async () => { setBusy(true); try { await onConfirm() } finally { setBusy(false) } }}
-            >
-              {busy ? 'Deleting…' : `Delete ${count} job${count === 1 ? '' : 's'}`}
-            </button>
-          </div>
-        </div>
+    <Modal
+      size="sm"
+      title={`Delete ${count} selected job${count === 1 ? '' : 's'}?`}
+      // No way out while the delete is in flight — closing here would leave
+      // the user unsure whether it happened.
+      onClose={busy ? undefined : onCancel}
+      footer={
+        <>
+          <Button onClick={onCancel} disabled={busy}>Cancel</Button>
+          <Button
+            tone="danger"
+            disabled={busy}
+            onClick={async () => { setBusy(true); try { await onConfirm() } finally { setBusy(false) } }}
+          >
+            {busy ? 'Deleting…' : `Delete ${count} job${count === 1 ? '' : 's'}`}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex gap-3">
+        <DangerMark />
+        <p className="text-sm leading-relaxed text-ink-faint">
+          This permanently removes {count === 1 ? 'the job and its documents' : 'these jobs and their documents'}.
+          It cannot be undone — to keep {count === 1 ? 'it' : 'them'} out of the way instead, use <strong className="font-semibold text-ink">Archive</strong>.
+        </p>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -826,44 +918,41 @@ function DeleteAllDialog({ count, onCancel, onConfirm }) {
   const [busy, setBusy] = useState(false)
   const ok = text.trim() === String(count)
 
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape' && !busy) onCancel() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel, busy])
-
   return (
-    <div className="modal-backdrop" onClick={() => !busy && onCancel()}>
-      <div className="modal modal--sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Delete all jobs">
-        <div className="confirm">
-          <span className="confirm__icon"><Icon name="alert" size={22} /></span>
-          <h2 className="confirm__title">Delete all {count} job{count === 1 ? '' : 's'}?</h2>
-          <p className="confirm__text">
-            This permanently removes <strong>every job and its uploaded documents</strong> from this browser.
-            It cannot be undone.
-          </p>
-          <label className="confirm__field">
-            <span>Type <strong>{count}</strong> to confirm</span>
-            <input
-              autoFocus
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={String(count)}
-              inputMode="numeric"
-            />
-          </label>
-          <div className="confirm__actions">
-            <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
-            <button
-              className="btn btn--danger"
-              disabled={!ok || busy}
-              onClick={async () => { setBusy(true); try { await onConfirm() } finally { setBusy(false) } }}
-            >
-              {busy ? 'Deleting…' : `Delete ${count} job${count === 1 ? '' : 's'}`}
-            </button>
-          </div>
-        </div>
+    <Modal
+      size="sm"
+      title={`Delete all ${count} job${count === 1 ? '' : 's'}?`}
+      onClose={busy ? undefined : onCancel}
+      footer={
+        <>
+          <Button onClick={onCancel} disabled={busy}>Cancel</Button>
+          <Button
+            tone="danger"
+            disabled={!ok || busy}
+            onClick={async () => { setBusy(true); try { await onConfirm() } finally { setBusy(false) } }}
+          >
+            {busy ? 'Deleting…' : `Delete ${count} job${count === 1 ? '' : 's'}`}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex gap-3">
+        <DangerMark />
+        <p className="text-sm leading-relaxed text-ink-faint">
+          This permanently removes <strong className="font-semibold text-ink">every job and its uploaded documents</strong> from
+          this browser. It cannot be undone.
+        </p>
       </div>
-    </div>
+      <Field className="mt-4" label={<>Type {count} to confirm</>}>
+        <Input
+          autoFocus
+          mono
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={String(count)}
+          inputMode="numeric"
+        />
+      </Field>
+    </Modal>
   )
 }

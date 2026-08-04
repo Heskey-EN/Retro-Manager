@@ -9,7 +9,7 @@ import { cx, focusRing, focusRingOnDark } from './cx'
 //    demoed on an iPhone. `sm` is 40px for dense toolbars — the jobs UI's old
 //    .btn--sm was 29px and the Finance tab's !px-3 !py-2 was ~32px, both of
 //    which are a miss with a thumb.
-// 2. RADIUS IS 8px. business.css declares 4px on .btn-primary, but every
+// 2. RADIUS IS 8px. business.css declared 4px on .btn-primary, but every
 //    single call site overrode it with `rounded-lg` — 8px is what has actually
 //    shipped all along, so it is what the token says now.
 // 3. PRIMARY HOVER IS ember-deep. styles.css darkened to #C94A22 and
@@ -36,7 +36,7 @@ const tones = {
 // The navy chrome (topbar, bulk action bar) is a nested theme: the same button
 // has to read as white-on-navy there. styles.css did this with descendant
 // overrides (`.topbar .btn`, `.bulkbar .btn--sm`), which is exactly the kind of
-// action-at-a-distance the migration is removing — so it is an explicit prop.
+// action-at-a-distance the migration removed — so it is an explicit prop.
 const tonesOnDark = {
   primary: tones.primary,
   secondary: 'border-white/20 bg-white/[0.14] text-white hover:bg-white/25',
@@ -79,13 +79,18 @@ const iconTones = {
 }
 
 export const IconButton = forwardRef(function IconButton(
-  { label, tone = 'default', size = 'md', onDark = false, className, children, ...rest },
+  { label, tone = 'default', size = 'md', onDark = false, as: Tag = 'button', className, children, ...rest },
   ref,
 ) {
+  // Same reasoning as Button's `as`: an icon control that changes the URL (the
+  // eye that opens an invoice) has to stay an anchor, or middle-click and
+  // "open in new tab" quietly stop working on it.
+  const typeProp = Tag === 'button' ? { type: rest.type || 'button' } : null
+
   return (
-    <button
+    <Tag
       ref={ref}
-      type={rest.type || 'button'}
+      {...typeProp}
       aria-label={label}
       title={rest.title || label}
       {...rest}
@@ -99,6 +104,6 @@ export const IconButton = forwardRef(function IconButton(
       )}
     >
       {children}
-    </button>
+    </Tag>
   )
 })

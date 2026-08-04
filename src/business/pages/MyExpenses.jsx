@@ -8,6 +8,7 @@ import { gbp, EXPENSE_CATEGORIES } from '../lib/store.js'
 import { todayISO, fmtDayMonth } from '../lib/dates.js'
 import { fetchMyExpenses, submitMyExpense } from '../lib/myExpenses.js'
 import { Field, inputCls, StatCard } from '../components/ui.jsx'
+import { Button } from '../../ui'
 import { useAuth } from '../../hooks/useAuth.js'
 
 export default function MyExpenses() {
@@ -72,13 +73,13 @@ export default function MyExpenses() {
       <div className="container-site animate-fade-in py-6 pb-16">
         <div className="mb-5">
           <h1 className="font-display text-2xl font-bold">My expenses</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-ink-faint">
             Log what you've spent and it goes straight to the office — no receipts needed here,
             but hang on to them.
           </p>
         </div>
 
-        <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-5 rounded-xl border border-line bg-white p-4 shadow-sm">
           <h2 className="mb-3 font-display text-lg font-bold">Log an expense</h2>
           <form onSubmit={submit} className="grid grid-cols-2 gap-3 lg:grid-cols-12">
             <Field label="What was it?" className="col-span-2 lg:col-span-4">
@@ -96,11 +97,11 @@ export default function MyExpenses() {
               </select>
             </Field>
             <div className="col-span-2 flex items-center gap-3 lg:col-span-12">
-              <button type="submit" disabled={busy} className="btn-primary rounded-lg !py-3 disabled:opacity-50 lg:!px-10">
+              <Button type="submit" tone="primary" disabled={busy} className="lg:px-10">
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Log expense
-              </button>
+              </Button>
               {added && <span className="text-sm font-semibold text-accent-green">{added}</span>}
-              {error && <span className="text-sm font-semibold text-red-600">{error}</span>}
+              {error && <span className="text-sm font-semibold text-danger">{error}</span>}
             </div>
           </form>
         </div>
@@ -110,18 +111,18 @@ export default function MyExpenses() {
           <StatCard label="All time" value={gbp.format((rows || []).reduce((s, x) => s + (Number(x.amount) || 0), 0))} sub={`${rows?.length || 0} logged`} />
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm lg:max-w-2xl">
-          <div className="border-b border-slate-200 px-4 py-3">
+        <div className="rounded-xl border border-line bg-white shadow-sm lg:max-w-2xl">
+          <div className="border-b border-line px-4 py-3">
             <h2 className="font-display text-lg font-bold">What you've logged</h2>
           </div>
           {loadError ? (
-            <p className="p-4 text-sm font-semibold text-red-600">Couldn't load your expenses: {loadError}</p>
+            <p className="p-4 text-sm font-semibold text-danger">Couldn't load your expenses: {loadError}</p>
           ) : !rows ? (
-            <p className="flex items-center gap-2 p-4 text-sm text-slate-500">
+            <p className="flex items-center gap-2 p-4 text-sm text-ink-faint">
               <Loader2 size={16} className="animate-spin" /> Loading…
             </p>
           ) : rows.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-14 text-slate-400">
+            <div className="flex flex-col items-center gap-2 py-14 text-ink-mute">
               <Receipt size={32} />
               <p className="text-sm">Nothing logged yet — add your first expense above.</p>
             </div>
@@ -129,17 +130,17 @@ export default function MyExpenses() {
             <div className="max-h-[560px] overflow-y-auto">
               {groups.map(([month, items]) => (
                 <div key={month}>
-                  <div className="sticky top-0 flex items-center justify-between bg-slate-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  <div className="sticky top-0 flex items-center justify-between bg-sunken px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-ink-faint">
                     <span>{monthLabel(month)}</span>
                     <span>−{gbp.format(items.reduce((s, x) => s + (Number(x.amount) || 0), 0))}</span>
                   </div>
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-line">
                     {items.map((x) => (
                       <li key={x.id} className="flex items-center gap-3 px-4 py-2.5">
-                        <span className="w-16 shrink-0 text-xs text-slate-500">{fmtDayMonth(x.date)}</span>
+                        <span className="w-16 shrink-0 text-xs text-ink-faint">{fmtDayMonth(x.date)}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{x.description || x.category}</span>
-                          <span className="block text-xs text-slate-500">{x.category}</span>
+                          <span className="block text-xs text-ink-faint">{x.category}</span>
                         </span>
                         <span className="text-sm font-bold">−{gbp.format(x.amount)}</span>
                       </li>
@@ -150,7 +151,7 @@ export default function MyExpenses() {
             </div>
           )}
           {rows?.length > 0 && (
-            <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-400">
+            <p className="border-t border-line px-4 py-2.5 text-xs text-ink-mute">
               Spotted a mistake? Ask an admin to fix it — logged expenses can't be edited here.
             </p>
           )}

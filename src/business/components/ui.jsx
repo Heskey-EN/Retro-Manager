@@ -1,61 +1,62 @@
-import { X } from 'lucide-react'
+// The Finance section's primitives — now the SHARED kit, not a second set.
+//
+// This file used to define its own Modal, Field, input and chip. They were
+// near-copies of the ones in src/ui with different numbers: a modal that was a
+// centred box on a phone instead of a bottom sheet, inputs with no 44px floor,
+// a slate-300 border where the rest of the app draws --color-line. Two systems
+// describing the same objects is exactly what made the app feel like three
+// apps, so these are now thin adapters over src/ui.
+//
+// It survives as a file (rather than every call site importing '../../ui')
+// because the old prop names differ — `wide` instead of `size`, `inputCls`
+// instead of `inputClass`. Translating once here was a great deal safer than
+// editing ~40 call sites across the Finance tab of a live app, and it leaves a
+// single obvious place to finish the job later.
 
+import { Card, Chip, Modal as KitModal, SpecLabel, inputClass } from '../../ui'
+
+// Identical signature ({ label, className, children }), so it passes straight
+// through — the kit's version simply lays the label out with a grid gap
+// instead of a margin.
+export { Field } from '../../ui'
+
+// `wide` was max-w-2xl and the default max-w-md. The kit's sizes are the
+// nearest equivalents, and bring the phone bottom-sheet behaviour with them.
 export function Modal({ title, onClose, children, wide = false }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-navy/60 p-4 pt-10 backdrop-blur-sm"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className={`w-full ${wide ? 'max-w-2xl' : 'max-w-md'} animate-fade-up rounded-xl bg-white shadow-2xl`}>
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h3 className="text-lg font-bold">{title}</h3>
-          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-navy" aria-label="Close">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="px-5 py-4">{children}</div>
-      </div>
-    </div>
-  )
-}
-
-export function Field({ label, children, className = '' }) {
-  return (
-    <label className={`block ${className}`}>
-      <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">{label}</span>
+    <KitModal title={title} onClose={onClose} size={wide ? 'lg' : 'sm'}>
       {children}
-    </label>
+    </KitModal>
   )
 }
 
-// text-base (16px) is deliberate: iOS Safari zooms the whole page whenever a
-// focused input's font-size is under 16px, which makes every form on a phone
-// feel broken.
-export const inputCls =
-  'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-brand-blue focus:outline-none focus:ring-1 focus:ring-brand-blue'
+// Was its own string with a slate-300 border and a ring-1 focus style. The kit's
+// is the same idea with the app's line colour, a 44px minimum height and the
+// one focus ring — still just a class string, so `${inputCls} !w-auto` at the
+// call sites keeps working.
+export const inputCls = inputClass
 
+// Kept as a component (rather than re-exported) because Finance's four tiles
+// per row are its own layout. What changed is the box: it is the kit's Card, so
+// a stat tile, a job card and the calendar are one object at one radius.
 export function StatCard({ label, value, sub, accent = 'text-navy' }) {
   return (
-    <div className="rounded-lg border border-ink/10 bg-paper-card p-4 shadow-card">
-      <div className="spec text-ink-faint">{label}</div>
+    <Card>
+      <SpecLabel as="div" tone="faint">{label}</SpecLabel>
       <div className={`mt-1 font-display text-2xl font-bold ${accent}`}>{value}</div>
       {sub && <div className="mt-0.5 text-xs text-ink-faint">{sub}</div>}
-    </div>
+    </Card>
   )
 }
 
+// Finance's own statuses — booked / done / paid for money, draft / sent / paid
+// for invoices. Deliberately NOT src/ui's StatusChip, which reads an
+// ASSESSMENT's status (Booked / Done / Paid / Cancelled) out of lib/status.js.
+// Same pill, different vocabulary; mapping the words onto the kit's tones is
+// what keeps them looking like one control.
+const CHIP_TONES = { booked: 'ember', done: 'amber', paid: 'moss', draft: 'ink', sent: 'amber' }
+const CHIP_LABELS = { booked: 'Booked', done: 'Done — unpaid', paid: 'Paid', draft: 'Draft', sent: 'Sent' }
+
 export function StatusChip({ status }) {
-  const styles = {
-    booked: 'bg-ember/[0.08] text-ember-deep border-ember/25',
-    done: 'bg-amber/[0.12] text-amber-deep border-amber/30',
-    paid: 'bg-moss/[0.10] text-moss-deep border-moss/30',
-    draft: 'bg-ink/[0.06] text-ink-soft border-ink/15',
-    sent: 'bg-amber/[0.12] text-amber-deep border-amber/30',
-  }
-  const labels = { booked: 'Booked', done: 'Done — unpaid', paid: 'Paid', draft: 'Draft', sent: 'Sent' }
-  return (
-    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${styles[status] || styles.draft}`}>
-      {labels[status] || status}
-    </span>
-  )
+  return <Chip tone={CHIP_TONES[status] || 'ink'}>{CHIP_LABELS[status] || status}</Chip>
 }

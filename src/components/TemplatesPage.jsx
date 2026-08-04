@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { useTemplates } from '../hooks/useTemplates'
 import { readFields } from '../lib/pdfDocs'
 import { JOB_FIELDS } from '../lib/jobData'
-import Icon from './Icon'
+import FullScreenPage, { PageCard } from './FullScreenPage'
+import { Banner, Button, EmptyState, IconButton, Input, Mono, Select, SpecLabel, cx } from '../ui'
 
 // Full-screen manager for output-document templates. Upload a fillable PDF, then
 // map each of its fields once — to a job value or a source-PDF field number —
@@ -90,135 +92,163 @@ export default function TemplatesPage({ onClose }) {
 
   const mappedCount = (t) => Object.keys(t.mapping || {}).length
 
+  const addTemplateButton = (
+    <>
+      <input ref={tplRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => onUploadTemplate(e.target.files?.[0])} />
+      <Button tone="primary" size="sm" onClick={() => tplRef.current?.click()} disabled={busy}>
+        {busy ? 'Reading…' : <><Plus size={16} aria-hidden /> Add template</>}
+      </Button>
+    </>
+  )
+
   return (
-    <div className="jobview">
-      <header className="jobview__top">
-        <button className="jobview__back" onClick={attemptClose}><Icon name="back" /> Back</button>
-        <div className="jobview__top-actions">
-          <input ref={tplRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => onUploadTemplate(e.target.files?.[0])} />
-          <button className="btn btn--primary btn--sm" onClick={() => tplRef.current?.click()} disabled={busy}>
-            {busy ? 'Reading…' : <><Icon name="plus" /> Add template</>}
-          </button>
-          <button className="icon-btn" onClick={attemptClose} aria-label="Close"><Icon name="close" /></button>
-        </div>
+    <FullScreenPage onClose={attemptClose} actions={addTemplateButton}>
+      <header>
+        <SpecLabel>Documents</SpecLabel>
+        <h1 className="font-display text-2xl font-semibold leading-tight text-ink sm:text-3xl">Document templates</h1>
+        <p className="mt-2 max-w-[40rem] text-[13px] leading-relaxed text-ink-faint">
+          Upload a fillable PDF template, then map each field once — to a value the app already holds,
+          or to a numbered field from your source PDFs. The mapping is reused for every job’s
+          “Generate documents”.
+        </p>
       </header>
 
-      <div className="jobview__inner">
-        <div className="jobview__identity">
-          <p className="eyebrow">Documents</p>
-          <h1 className="jobview__title">Document templates</h1>
-          <p className="jobview__box-hint" style={{ maxWidth: 640 }}>
-            Upload a fillable PDF template, then map each field once — to a value the app already holds,
-            or to a numbered field from your source PDFs. The mapping is reused for every job’s
-            “Generate documents”.
+      {msg && <Banner tone={msg.type === 'error' ? 'danger' : 'success'}>{msg.text}</Banner>}
+
+      {templates.length === 0 ? (
+        loading ? (
+          <p className="flex items-center gap-2 text-[13px] text-ink-faint">
+            <Loader2 size={16} className="animate-spin" aria-hidden /> Loading templates…
           </p>
-        </div>
-
-        {msg && <div className={`upload-msg upload-msg--${msg.type}`}>{msg.text}</div>}
-
-        {templates.length === 0 ? (
-          loading ? (
-            <div className="loading-note">Loading templates…</div>
-          ) : (
-            <div className="placeholder">
-              <p>No templates yet. Add a fillable PDF template to get started.</p>
-            </div>
-          )
         ) : (
-          <div className="templates">
-            <aside className="templates__list">
-              {templates.map((t) => (
-                <div key={t.id} className={`templates__item${t.id === activeId ? ' is-active' : ''}`}>
-                  <button className="templates__pick" onClick={() => selectTemplate(t.id)}>
-                    <span className="templates__name">{t.name}</span>
-                    <span className="templates__meta mono">{mappedCount(t)}/{t.fields?.length || 0} mapped</span>
-                  </button>
-                  <button
-                    className="templates__del"
-                    onClick={() => {
-                      if (!window.confirm(`Delete template “${t.name}”? This removes the PDF and its field mapping.`)) return
-                      remove(t.id)
-                      if (activeId === t.id) setActiveId(null)
-                    }}
-                    aria-label="Delete template"
-                  ><Icon name="trash" /></button>
+          <EmptyState
+            title="No templates yet"
+            action={<Button tone="primary" onClick={() => tplRef.current?.click()}><Plus size={16} aria-hidden /> Add template</Button>}
+          >
+            Add a fillable PDF template to get started.
+          </EmptyState>
+        )
+      ) : (
+        // minmax(0,1fr) everywhere a track holds text or a select: a track's
+        // automatic minimum is min-content, so one long PDF field name would
+        // otherwise widen the whole page instead of wrapping.
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[17rem_minmax(0,1fr)]">
+          <aside className="flex flex-col gap-2">
+            {templates.map((t) => (
+              <div
+                key={t.id}
+                className={cx(
+                  'flex items-stretch overflow-hidden rounded-lg border bg-paper-card',
+                  t.id === activeId ? 'border-ember ring-2 ring-ember/30' : 'border-line',
+                )}
+              >
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 px-3 py-2.5 text-left"
+                  onClick={() => selectTemplate(t.id)}
+                >
+                  <span className="truncate text-sm font-medium text-ink">{t.name}</span>
+                  <Mono className="text-xs text-ink-faint">{mappedCount(t)}/{t.fields?.length || 0} mapped</Mono>
+                </button>
+                <IconButton
+                  label="Delete template"
+                  tone="danger"
+                  size="sm"
+                  className="self-center"
+                  onClick={() => {
+                    if (!window.confirm(`Delete template “${t.name}”? This removes the PDF and its field mapping.`)) return
+                    remove(t.id)
+                    if (activeId === t.id) setActiveId(null)
+                  }}
+                >
+                  <Trash2 size={16} aria-hidden />
+                </IconButton>
+              </div>
+            ))}
+          </aside>
+
+          {!active ? (
+            <PageCard>
+              <EmptyState size="compact">Select a template to map its fields.</EmptyState>
+            </PageCard>
+          ) : (
+            <PageCard
+              title={active.name}
+              headAction={
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* A <label> rather than a button: it is the click target for
+                      the hidden file input, so it must not be a nested button. */}
+                  <Button as="label" size="sm" className="cursor-pointer">
+                    <input ref={sampleRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => onSampleSource(e.target.files?.[0])} />
+                    Load source field list
+                  </Button>
+                  <Button tone="primary" size="sm" onClick={saveMapping} disabled={!dirty}>
+                    {dirty ? 'Save mapping' : 'Saved'}
+                  </Button>
                 </div>
-              ))}
-            </aside>
-
-            <section className="templates__editor">
-              {!active ? (
-                <p className="placeholder">Select a template to map its fields.</p>
-              ) : (
-                <>
-                  <div className="templates__editor-head">
-                    <h2 className="jobview__box-title">{active.name}</h2>
-                    <div className="templates__editor-actions">
-                      <label className="btn btn--sm">
-                        <input ref={sampleRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => onSampleSource(e.target.files?.[0])} />
-                        Load source field list
-                      </label>
-                      <button className="btn btn--sm btn--primary" onClick={saveMapping} disabled={!dirty}>
-                        {dirty ? 'Save mapping' : 'Saved'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {sampleFields.length > 0 && (
-                    <p className="templates__hint mono">Source fields: {sampleFields.join(', ')}</p>
-                  )}
-
-                  <datalist id="source-fields">
-                    {sampleFields.map((f) => <option key={f} value={f} />)}
-                  </datalist>
-
-                  <div className="mapping">
-                    <div className="mapping__row mapping__row--head">
-                      <span>Template field</span>
-                      <span>Gets its value from</span>
-                    </div>
-                    {(active.fields || []).map((field) => {
-                      const m = draft[field]
-                      const selectValue = m?.type === 'job' ? `job:${m.key}` : m?.type === 'pdf' ? 'pdf' : ''
-                      return (
-                        <div className="mapping__row" key={field}>
-                          <span className="mapping__field mono">{field}</span>
-                          <div className="mapping__source">
-                            <select
-                              value={selectValue}
-                              onChange={(e) => {
-                                const v = e.target.value
-                                if (!v) setField(field, null)
-                                else if (v === 'pdf') setField(field, { type: 'pdf', key: m?.type === 'pdf' ? m.key : '' })
-                                else setField(field, { type: 'job', key: v.slice(4) })
-                              }}
-                            >
-                              <option value="">— not mapped —</option>
-                              <optgroup label="Job data">
-                                {JOB_FIELDS.map((jf) => <option key={jf.key} value={`job:${jf.key}`}>{jf.label}</option>)}
-                              </optgroup>
-                              <option value="pdf">From source PDF field…</option>
-                            </select>
-                            {m?.type === 'pdf' && (
-                              <input
-                                className="mapping__pdf mono"
-                                list="source-fields"
-                                placeholder="field number / name"
-                                value={m.key}
-                                onChange={(e) => setField(field, { type: 'pdf', key: e.target.value })}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </>
+              }
+            >
+              {sampleFields.length > 0 && (
+                <Banner tone="info">
+                  <Mono className="break-words text-xs">Source fields: {sampleFields.join(', ')}</Mono>
+                </Banner>
               )}
-            </section>
-          </div>
-        )}
-      </div>
-    </div>
+
+              <datalist id="source-fields">
+                {sampleFields.map((f) => <option key={f} value={f} />)}
+              </datalist>
+
+              <div className="flex flex-col">
+                {/* The two-column head only makes sense once the row is two
+                    columns — on a phone each field stacks above its source. */}
+                <div className="hidden gap-3 pb-2 text-[11px] uppercase tracking-wide text-ink-faint sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+                  <span>Template field</span>
+                  <span>Gets its value from</span>
+                </div>
+                {(active.fields || []).map((field) => {
+                  const m = draft[field]
+                  const selectValue = m?.type === 'job' ? `job:${m.key}` : m?.type === 'pdf' ? 'pdf' : ''
+                  return (
+                    <div className="grid grid-cols-1 gap-2 border-t border-line py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] sm:items-center sm:gap-3" key={field}>
+                      <Mono className="break-words text-[13px] text-ink">{field}</Mono>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Select
+                          className="sm:flex-1"
+                          aria-label={`Source for ${field}`}
+                          value={selectValue}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            if (!v) setField(field, null)
+                            else if (v === 'pdf') setField(field, { type: 'pdf', key: m?.type === 'pdf' ? m.key : '' })
+                            else setField(field, { type: 'job', key: v.slice(4) })
+                          }}
+                        >
+                          <option value="">— not mapped —</option>
+                          <optgroup label="Job data">
+                            {JOB_FIELDS.map((jf) => <option key={jf.key} value={`job:${jf.key}`}>{jf.label}</option>)}
+                          </optgroup>
+                          <option value="pdf">From source PDF field…</option>
+                        </Select>
+                        {m?.type === 'pdf' && (
+                          <Input
+                            mono
+                            className="sm:w-40"
+                            list="source-fields"
+                            placeholder="field number / name"
+                            aria-label={`Source PDF field for ${field}`}
+                            value={m.key}
+                            onChange={(e) => setField(field, { type: 'pdf', key: e.target.value })}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </PageCard>
+          )}
+        </div>
+      )}
+    </FullScreenPage>
   )
 }

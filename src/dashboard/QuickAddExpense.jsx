@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Loader2, Paperclip, Plus, X } from 'lucide-react'
-import { Modal, Field } from '../business/components/ui.jsx'
+import { Modal, Field, inputCls } from '../business/components/ui.jsx'
+import { Button, IconButton } from '../ui'
 import { addExpense, ensureBusinessReady, EXPENSE_CATEGORIES, gbp } from '../business/lib/store.js'
 import { fileToReceipt, putReceipt, deleteReceipt } from '../business/lib/receipts.js'
 import { submitMyExpense } from '../business/lib/myExpenses.js'
@@ -11,8 +12,8 @@ import { useAuth } from '../hooks/useAuth'
 //   permitted workers   -> their own row in biz_expenses (no receipt column)
 // Whichever it is, the money lands in the same Finance figures.
 
-const input =
-  'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-brand-blue focus:outline-none focus:ring-1 focus:ring-brand-blue'
+// The kit's field recipe. This file used to carry its own copy of the string.
+const input = inputCls
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
@@ -95,29 +96,29 @@ export default function QuickAddExpense({ onClose, onAdded }) {
         </Field>
 
         <div>
-          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Receipt</span>
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-faint">Receipt</span>
           {workerPath ? (
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
+            <p className="rounded-lg border border-line bg-sunken px-3 py-2.5 text-xs text-ink-faint">
               Keep hold of the paper receipt — photos stay on the device that took them, so the
               office can't see one attached here yet.
             </p>
           ) : receipt ? (
-            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <div className="flex items-center gap-2 rounded-lg border border-line bg-sunken px-3 py-2.5">
               <Paperclip size={15} className="shrink-0 text-accent-green" />
               <span className="min-w-0 flex-1 truncate text-xs font-semibold">{receipt.receiptName}</span>
-              <button
-                type="button"
+              <IconButton
+                label="Remove receipt"
+                tone="danger"
+                size="sm"
                 onClick={() => { deleteReceipt(receipt.receiptId).catch(() => {}); setReceipt(null) }}
-                className="text-slate-400 hover:text-red-600"
-                aria-label="Remove receipt"
-              ><X size={16} /></button>
+              ><X size={16} /></IconButton>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-3 py-3 text-xs font-bold uppercase tracking-wide text-slate-500 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-line-strong px-3 py-3 text-xs font-bold uppercase tracking-wide text-ink-faint disabled:opacity-50"
             >
               <Paperclip size={15} /> Photograph the receipt
             </button>
@@ -126,10 +127,10 @@ export default function QuickAddExpense({ onClose, onAdded }) {
           <input ref={fileRef} type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={pickReceipt} />
         </div>
 
-        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
-        <button type="submit" disabled={busy} className="btn-primary w-full rounded-lg !py-3.5 disabled:opacity-50">
+        {error && <p className="text-sm font-semibold text-danger">{error}</p>}
+        <Button type="submit" tone="primary" disabled={busy} className="w-full">
           {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add expense
-        </button>
+        </Button>
       </form>
     </Modal>
   )

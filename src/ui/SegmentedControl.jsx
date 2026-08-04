@@ -22,10 +22,12 @@ export function SegmentedControl({
   mode = 'tabs',
   full = false,
   className,
+  ...rest
 }) {
   const isTabs = mode === 'tabs'
   return (
     <div
+      {...rest}
       role={isTabs ? 'tablist' : 'radiogroup'}
       aria-label={label}
       className={cx(

@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Loader2, MapPin, Plus, Trash2, Copy, Check, Share2, Route } from 'lucide-react'
-import { Modal, Field } from '../business/components/ui.jsx'
+import { Modal, Field, inputCls } from '../business/components/ui.jsx'
+import { Button, IconButton } from '../ui'
 import { DEFAULT_STATUS } from '../lib/status'
+import { todayISO } from '../lib/dates.js'
 import { planRoute, customerMessage, looksLikePostcode, normalisePostcode } from '../lib/route'
 
 // Adding work from a phone, in the two shapes it actually arrives:
@@ -9,11 +11,12 @@ import { planRoute, customerMessage, looksLikePostcode, normalisePostcode } from
 //   MANY — a batch of addresses for one day, put in a sensible driving order
 //          with a time slot each and a message ready to send to every customer.
 
-// 16px inputs: anything smaller makes iOS zoom the page on focus.
-const input =
-  'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-brand-blue focus:outline-none focus:ring-1 focus:ring-brand-blue'
+// The kit's field recipe — 16px so iOS doesn't zoom on focus, 44px tall so a
+// thumb can hit it. This file used to carry its own near-identical copy.
+const input = inputCls
 
-const todayIso = () => new Date().toISOString().slice(0, 10)
+// todayISO() reads the LOCAL date. toISOString().slice(0,10) returns yesterday
+// between midnight and 01:00 BST, which quietly booked jobs on the wrong day.
 
 // "Auto" picks the next free slot on the chosen day: an hour after the last
 // job already booked that day, or 09:00 if the day is empty. Shown in the UI
@@ -84,28 +87,25 @@ function FeeRows({ fees, setFees }) {
             value={f.amount}
             onChange={(e) => setFees(fees.map((x, k) => (k === i ? { ...x, amount: e.target.value } : x)))}
           />
-          <button
-            type="button"
-            onClick={() => setFees(fees.filter((_, k) => k !== i))}
-            className="shrink-0 rounded-lg border border-slate-200 px-3 text-slate-400 hover:text-red-600"
-            aria-label="Remove fee"
-          ><Trash2 size={16} /></button>
+          {/* Same pair of controls as the invoice's line items in Finance —
+              one look for "remove this row" / "add another row". */}
+          <IconButton label="Remove fee" tone="danger" onClick={() => setFees(fees.filter((_, k) => k !== i))}>
+            <Trash2 size={16} />
+          </IconButton>
         </div>
       ))}
-      <button
-        type="button"
-        onClick={() => setFees([...fees, { description: '', amount: '' }])}
-        className="text-xs font-bold uppercase tracking-wide text-brand-blue"
-      >+ Add a fee</button>
+      <Button size="sm" tone="ghost" onClick={() => setFees([...fees, { description: '', amount: '' }])}>
+        + Add a fee
+      </Button>
     </div>
   )
 }
 
 /* ── One job ─────────────────────────────────────────────────────────── */
 
-function SingleJob({ onCreate, onDone, jobs }) {
+function SingleJob({ onCreate, onDone, jobs, initialDate }) {
   const [form, setForm] = useState({
-    address: '', postcode: '', customer: '', date: todayIso(), time: '', price: '', notes: '',
+    address: '', postcode: '', customer: '', date: initialDate || todayISO(), time: '', price: '', notes: '',
   })
   const [autoTime, setAutoTime] = useState(true)
   const [fees, setFees] = useState([])
@@ -164,9 +164,9 @@ function SingleJob({ onCreate, onDone, jobs }) {
               readOnly={autoTime}
               onChange={set('time')}
             />
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <label className="flex items-center gap-2 text-xs font-semibold text-ink-faint">
               <input type="checkbox" className="h-4 w-4 accent-ember" checked={autoTime} onChange={(e) => setAutoTime(e.target.checked)} />
-              Auto {autoTime && <span className="text-slate-400">· next free slot</span>}
+              Auto {autoTime && <span className="text-ink-mute">· next free slot</span>}
             </label>
           </div>
         </Field>
@@ -178,18 +178,18 @@ function SingleJob({ onCreate, onDone, jobs }) {
         />
       </Field>
       <div>
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Fees</span>
+        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-faint">Fees</span>
         <FeeRows fees={fees} setFees={setFees} />
       </div>
       <Field label="Notes">
         <textarea className={input} rows={2} value={form.notes} onChange={set('notes')} placeholder="Anything the team needs to know" />
       </Field>
 
-      {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
-      <button type="submit" disabled={busy} className="btn-primary w-full rounded-lg !py-3.5 disabled:opacity-50">
+      {error && <p className="text-sm font-semibold text-danger">{error}</p>}
+      <Button type="submit" tone="primary" disabled={busy} className="w-full">
         {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add job
-      </button>
-      <p className="text-center text-xs text-slate-400">
+      </Button>
+      <p className="text-center text-xs text-ink-mute">
         The price and fees go straight into Finance.
       </p>
     </form>
@@ -220,28 +220,28 @@ function MessageBlock({ stop, dateIso }) {
   }
 
   return (
-    <div className="mt-2 rounded-lg bg-slate-50 p-2.5">
-      <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-slate-600">{text}</pre>
+    <div className="mt-2 rounded-lg bg-sunken p-2.5">
+      <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-ink-soft">{text}</pre>
       <div className="mt-2 flex gap-2">
-        <button type="button" onClick={copy} className="btn-outline flex-1 rounded-lg !px-3 !py-2 !text-xs">
+        <Button size="sm" onClick={copy} className="flex-1">
           {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-        </button>
+        </Button>
         {typeof navigator !== 'undefined' && navigator.share && (
-          <button type="button" onClick={share} className="btn-outline flex-1 rounded-lg !px-3 !py-2 !text-xs">
+          <Button size="sm" onClick={share} className="flex-1">
             <Share2 size={14} /> Send
-          </button>
+          </Button>
         )}
       </div>
     </div>
   )
 }
 
-function MultiJob({ onCreate, onDone }) {
+function MultiJob({ onCreate, onDone, initialDate }) {
   const [rows, setRows] = useState([
     { postcode: '', address: '', customer: '' },
     { postcode: '', address: '', customer: '' },
   ])
-  const [date, setDate] = useState(todayIso())
+  const [date, setDate] = useState(initialDate || todayISO())
   const [startTime, setStartTime] = useState('09:00')
   const [jobMinutes, setJobMinutes] = useState(45)
   const [price, setPrice] = useState('')
@@ -314,10 +314,10 @@ function MultiJob({ onCreate, onDone }) {
       </div>
 
       <div>
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Addresses</span>
+        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-faint">Addresses</span>
         <div className="space-y-2">
           {rows.map((r, i) => (
-            <div key={i} className="rounded-lg border border-slate-200 p-2">
+            <div key={i} className="rounded-lg border border-line p-2">
               <div className="flex gap-2">
                 <input
                   className={`${input} uppercase !w-32`}
@@ -336,7 +336,7 @@ function MultiJob({ onCreate, onDone }) {
                   type="button"
                   onClick={() => setRows(rows.filter((_, k) => k !== i))}
                   disabled={rows.length <= 1}
-                  className="shrink-0 rounded-lg border border-slate-200 px-3 text-slate-400 hover:text-red-600 disabled:opacity-30"
+                  className="shrink-0 rounded-lg border border-line px-3 text-ink-mute hover:text-danger disabled:opacity-30"
                   aria-label="Remove address"
                 ><Trash2 size={16} /></button>
               </div>
@@ -352,31 +352,24 @@ function MultiJob({ onCreate, onDone }) {
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => setRows([...rows, { postcode: '', address: '', customer: '' }])}
-          className="mt-2 text-xs font-bold uppercase tracking-wide text-brand-blue"
-        >+ Add another address</button>
+        <Button size="sm" tone="ghost" className="mt-2" onClick={() => setRows([...rows, { postcode: '', address: '', customer: '' }])}>
+          + Add another address
+        </Button>
       </div>
 
-      {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+      {error && <p className="text-sm font-semibold text-danger">{error}</p>}
 
       {!plan ? (
-        <button
-          type="button"
-          onClick={doPlan}
-          disabled={planning || filled.length < 2}
-          className="btn-primary w-full rounded-lg !py-3.5 disabled:opacity-50"
-        >
+        <Button tone="primary" className="w-full" onClick={doPlan} disabled={planning || filled.length < 2}>
           {planning ? <Loader2 size={18} className="animate-spin" /> : <Route size={18} />}
           {planning ? 'Planning the route…' : `Plan the route (${filled.length})`}
-        </button>
+        </Button>
       ) : (
         <div className="space-y-3">
-          <div className="rounded-lg border border-slate-200 bg-white p-3">
+          <div className="rounded-lg border border-line bg-white p-3">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="font-display text-base font-bold">The run</h3>
-              <button type="button" onClick={() => setPlan(null)} className="text-xs font-bold uppercase tracking-wide text-slate-500">Edit</button>
+              <Button size="sm" tone="ghost" onClick={() => setPlan(null)}>Edit</Button>
             </div>
             {!plan.optimised && (
               <p className="mb-2 rounded-lg bg-amber/10 p-2 text-xs font-semibold text-amber-deep">
@@ -390,7 +383,7 @@ function MultiJob({ onCreate, onDone }) {
                 Couldn't place {plan.unplaced.join(', ')} — left at the end.
               </p>
             )}
-            <ol className="divide-y divide-slate-100">
+            <ol className="divide-y divide-line">
               {plan.schedule.map((s) => (
                 <li key={`${s.postcode}-${s.order}`} className="py-2.5">
                   <div className="flex items-start gap-2.5">
@@ -402,7 +395,7 @@ function MultiJob({ onCreate, onDone }) {
                         <span className="truncate text-sm font-semibold">{s.address || s.postcode}</span>
                         <span className="shrink-0 font-mono text-xs font-bold text-ember">{s.slotStart}–{s.slotEnd}</span>
                       </div>
-                      <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <span className="flex items-center gap-1 text-xs text-ink-faint">
                         <MapPin size={11} />{normalisePostcode(s.postcode)}{s.customer ? ` · ${s.customer}` : ''}
                       </span>
                       <MessageBlock stop={s} dateIso={date} />
@@ -413,10 +406,10 @@ function MultiJob({ onCreate, onDone }) {
             </ol>
           </div>
 
-          <button type="button" onClick={addAll} disabled={busy} className="btn-primary w-full rounded-lg !py-3.5 disabled:opacity-50">
+          <Button tone="primary" className="w-full" onClick={addAll} disabled={busy}>
             {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
             Add all {plan.schedule.length} jobs
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -425,7 +418,7 @@ function MultiJob({ onCreate, onDone }) {
 
 /* ── Shell ───────────────────────────────────────────────────────────── */
 
-export default function QuickAddJob({ onCreate, onClose, onAdded, jobs }) {
+export default function QuickAddJob({ onCreate, onClose, onAdded, jobs, initialDate }) {
   const [mode, setMode] = useState('one')
 
   const done = (n) => {
@@ -442,14 +435,14 @@ export default function QuickAddJob({ onCreate, onClose, onAdded, jobs }) {
             type="button"
             onClick={() => setMode(key)}
             className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
-              mode === key ? 'bg-navy text-white' : 'border border-slate-200 bg-white text-slate-500'
+              mode === key ? 'bg-navy text-white' : 'border border-line bg-white text-ink-faint'
             }`}
           >{label}</button>
         ))}
       </div>
       {mode === 'one'
-        ? <SingleJob onCreate={onCreate} onDone={done} jobs={jobs} />
-        : <MultiJob onCreate={onCreate} onDone={done} />}
+        ? <SingleJob onCreate={onCreate} onDone={done} jobs={jobs} initialDate={initialDate} />
+        : <MultiJob onCreate={onCreate} onDone={done} initialDate={initialDate} />}
     </Modal>
   )
 }

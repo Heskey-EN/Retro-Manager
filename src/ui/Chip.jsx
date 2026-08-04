@@ -18,9 +18,16 @@ const chipTones = {
 }
 
 // A static label. `dot` takes a colour and draws a leading marker.
-export function Chip({ tone = 'neutral', size = 'md', dot, className, children }) {
+//
+// Every primitive here forwards unknown props to its root element. That is not
+// tidiness: JobList.jsx finds cards and controls by querying the DOM
+// (`closest('.job-card')`, `.status-pill`), and the migration replaces those
+// class hooks with data- attributes. A primitive that silently swallows
+// `data-job-id` breaks drag-select with no error anywhere.
+export function Chip({ tone = 'neutral', size = 'md', dot, className, children, ...rest }) {
   return (
     <span
+      {...rest}
       className={cx(
         'inline-flex max-w-full items-center rounded-full border font-semibold',
         chipSizes[size] || chipSizes.md,
@@ -41,10 +48,11 @@ export function Chip({ tone = 'neutral', size = 'md', dot, className, children }
 // jobs still carrying the old pipeline names. The tint is mixed from the
 // status colour at runtime — the same color-mix formula .status-pill used —
 // which is why Cancelled works here and did not in the Finance tab's chip.
-export function StatusChip({ status, size = 'md', className }) {
+export function StatusChip({ status, size = 'md', className, ...rest }) {
   const colour = statusColor(status)
   return (
     <span
+      {...rest}
       style={{
         '--status-color': colour,
         color: 'color-mix(in srgb, var(--status-color) 62%, var(--color-ink))',
@@ -65,9 +73,10 @@ export function StatusChip({ status, size = 'md', className }) {
 
 // A chip you tap to filter. Same shape as Chip, but a real button: 44px tall,
 // pressed state announced to screen readers, and an optional count.
-export function FilterChip({ active = false, dot, count, onClick, className, children }) {
+export function FilterChip({ active = false, dot, count, onClick, className, children, ...rest }) {
   return (
     <button
+      {...rest}
       type="button"
       onClick={onClick}
       aria-pressed={active}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import { Modal, Field, inputCls } from './ui.jsx'
+import { Button, IconButton } from '../../ui'
 import { addJob, updateJob, deleteJob, JOB_TYPES, gbp } from '../lib/store.js'
 import { todayISO } from '../lib/dates.js'
 
@@ -40,14 +41,14 @@ export default function JobModal({ job, initialDate, initialType, onClose }) {
   if (job?._linked) {
     return (
       <Modal title="Synced from the Jobs tab" onClose={onClose}>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink-faint">
           <strong>{job.customer || 'This job'}</strong> comes from the Jobs tab — its projected
           revenue and costs flow into Finance automatically. To change the figures, open the job
           there and edit its costing.
         </p>
-        <a href="#/jobs" className="btn-primary mt-4 w-full rounded-lg">
+        <Button as="a" tone="primary" href="#/jobs" className="mt-4 w-full no-underline">
           Open the Jobs tab
-        </a>
+        </Button>
       </Modal>
     )
   }
@@ -162,8 +163,8 @@ export default function JobModal({ job, initialDate, initialType, onClose }) {
         )}
 
         {isBlock && (
-          <div className="rounded-lg bg-slate-50 p-3">
-            <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="rounded-lg bg-sunken p-3">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-ink-faint">
               Paid per assessment? Set the day rate
             </span>
             <div className="grid grid-cols-2 gap-3">
@@ -221,7 +222,7 @@ export default function JobModal({ job, initialDate, initialType, onClose }) {
             }
           >
             {isRateBlock ? (
-              <input className={`${inputCls} bg-slate-100 font-bold text-navy`} value={gbp.format(rateTotal)} disabled />
+              <input className={`${inputCls} bg-sunken font-bold text-navy`} value={gbp.format(rateTotal)} disabled />
             ) : (
               <input
                 type="number"
@@ -251,18 +252,16 @@ export default function JobModal({ job, initialDate, initialType, onClose }) {
         </Field>
 
         {isEpc && (
-          <div className="rounded-lg bg-slate-50 p-3">
+          <div className="rounded-lg bg-sunken p-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              <span className="text-xs font-bold uppercase tracking-wide text-ink-faint">
                 {hasExtras ? `${form.moreEpcs.length + 1} EPCs on this visit` : 'Doing more than one EPC?'}
               </span>
-              <button
-                type="button"
-                onClick={addEpcRow}
-                className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-brand-blue hover:underline"
-              >
+              {/* Same control as "+ Add line" on an invoice and "+ Add a fee"
+                  on the quick-add form — one look for "add another row". */}
+              <Button size="sm" tone="ghost" onClick={addEpcRow}>
                 <Plus size={12} /> Add another EPC
-              </button>
+              </Button>
             </div>
             {hasExtras && (
               <>
@@ -287,7 +286,7 @@ export default function JobModal({ job, initialDate, initialType, onClose }) {
                       <button
                         type="button"
                         onClick={() => removeEpcRow(i)}
-                        className="rounded-lg border border-slate-200 px-2 text-slate-400 hover:text-red-600"
+                        className="rounded-lg border border-line px-2 text-ink-mute hover:text-danger"
                         title="Remove this EPC"
                       >
                         <Trash2 size={14} />
@@ -309,13 +308,13 @@ export default function JobModal({ job, initialDate, initialType, onClose }) {
 
         <div className="flex gap-2 pt-1">
           {editing && (
-            <button type="button" onClick={remove} className="rounded-lg border-2 border-red-200 px-3 text-red-600 hover:bg-red-50" title="Delete">
+            <IconButton label="Delete this entry" tone="danger" onClick={remove}>
               <Trash2 size={16} />
-            </button>
+            </IconButton>
           )}
-          <button type="submit" className="btn-primary flex-1 rounded-lg">
+          <Button type="submit" tone="primary" className="flex-1">
             {editing ? 'Save changes' : isBlock ? 'Block out' : 'Add job'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

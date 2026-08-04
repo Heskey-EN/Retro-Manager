@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { HUB_URL } from '../lib/supabaseClient'
-import '../styles-admin.css'
+import { Button, Card } from '../ui'
 
 // Wraps the app. Sign-in happens at the HUB (ecofutures.uk/retrofit-suite) —
 // this app never shows its own login. The shared .ecofutures.uk cookie means
@@ -21,48 +21,55 @@ export default function AuthGate({ children }) {
   }, [awaitingOrg, auth.refresh])
 
   if (!auth.configured) return children
-  if (auth.loading) return <div className="admin__loading">Loading…</div>
+  if (auth.loading) return <div className="grid min-h-[60vh] place-items-center text-ink-faint">Loading…</div>
 
   if (!auth.session) {
     return (
-      <div className="auth">
-        <div className="auth__card">
-          <h1 className="auth__title">Sign in through the Retrofit Suite</h1>
-          <p className="auth__note">
-            The Job Manager uses your Eco Futures suite account — one login for every
-            app. Sign in at the Hub, then come back to this tab (or open the Job
-            Manager tile) and you'll be straight in.
-          </p>
-          <div className="auth__actions">
-            <a className="btn btn--primary" href={`${HUB_URL}/retrofit-suite`}>
-              Sign in at the Hub
-            </a>
-          </div>
+      <GateShell title="Sign in through the Retrofit Suite">
+        <p>
+          Assessment Manager uses your Eco Futures suite account — one login for every
+          app. Sign in at the Hub, then come back to this tab (or open the Assessment
+          Manager tile) and you'll be straight in.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button as="a" tone="primary" href={`${HUB_URL}/retrofit-suite`}>
+            Sign in at the Hub
+          </Button>
         </div>
-      </div>
+      </GateShell>
     )
   }
 
   if (!auth.hasAccess) {
     return (
-      <div className="auth">
-        <div className="auth__card">
-          <h1 className="auth__title">Almost there</h1>
-          <p className="auth__note">
-            You're signed in as <strong>{auth.user.email}</strong>, but you're not part
-            of an organisation yet. Set one up on the Hub, or ask your admin to add
-            you — this page checks again automatically.
-          </p>
-          <div className="auth__actions">
-            <a className="btn btn--primary" href={`${HUB_URL}/retrofit-suite`}>
-              Open the Retrofit Suite
-            </a>
-            <button className="btn" onClick={auth.signOut}>Sign out</button>
-          </div>
+      <GateShell title="Almost there">
+        <p>
+          You're signed in as <strong className="font-semibold text-ink">{auth.user.email}</strong>, but
+          you're not part of an organisation yet. Set one up on the Hub, or ask your admin to add
+          you — this page checks again automatically.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button as="a" tone="primary" href={`${HUB_URL}/retrofit-suite`}>
+            Open the Retrofit Suite
+          </Button>
+          <Button onClick={auth.signOut}>Sign out</Button>
         </div>
-      </div>
+      </GateShell>
     )
   }
 
   return children
+}
+
+// The only screen a signed-out visitor sees, so it carries the app's card
+// recipe rather than a one-off — it is the first impression of the whole tool.
+function GateShell({ title, children }) {
+  return (
+    <div className="grid min-h-dvh place-items-center bg-paper p-5">
+      <Card pad={false} className="flex w-full max-w-md flex-col gap-4 p-6 text-sm leading-relaxed text-ink-faint shadow-card sm:p-8">
+        <h1 className="font-display text-2xl font-semibold text-ink">{title}</h1>
+        {children}
+      </Card>
+    </div>
+  )
 }

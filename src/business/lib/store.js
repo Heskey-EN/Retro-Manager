@@ -326,6 +326,29 @@ export async function ensureBusinessReady(orgId) {
 
 export const isCloudReady = () => !supabase || Boolean(cloudOrgId)
 
+// Subscribe to "is this store showing the ORGANISATION's data yet?".
+//
+// The shared calendar renders outside the Finance tab, so it can reach the
+// store before initCloud has run — and until then `data` is this device's
+// pre-suite localStorage blob. On the owner's machine that is the old Business
+// Tracker's data, which would appear as phantom entries on the Dashboard. This
+// lets a reader wait instead of guessing. Local mode is ready immediately.
+export function useBusinessReady() {
+  const [ready, setReady] = useState(isCloudReady)
+  useEffect(() => {
+    const fn = () => setReady(isCloudReady())
+    // Both sets, because the flip happens on the notify() right after
+    // cloudOrgId is adopted AND is reflected in the cloud status stream.
+    listeners.add(fn)
+    cloudListeners.add(fn)
+    return () => {
+      listeners.delete(fn)
+      cloudListeners.delete(fn)
+    }
+  }, [])
+  return ready
+}
+
 // The device's pre-suite localStorage data (for the one-time cloud upload).
 export function localSnapshot() {
   try {

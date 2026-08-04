@@ -1,11 +1,15 @@
-/* Component classes for the business (Finance) section, ported from the
-   Business Hub's index.css. They live in the `components` cascade layer so
-   Tailwind utilities on the same element still win (matching the tracker's
-   original v3 layering) — and none of the names collide with the jobs UI's
-   design system in styles.css (that uses .btn--primary / .card etc.).
-   Theme values come from the @theme block in src/tailwind.css. */
+/* What is left of the Finance section's own stylesheet.
+   Everything that drew a COMPONENT has gone: .btn-primary / .btn-dark /
+   .btn-outline are src/ui's <Button>, and .spec is <SpecLabel>. They were a
+   second design system describing the same objects as the first — a 4px radius
+   every call site overrode back to 8px, a different primary hover (#B83C18 vs
+   the jobs UI's #C94A22), and no 44px floor on a phone.
+
+   One layout helper remains, and it is used by all three sections. */
 
 @layer components {
+  /* The page gutter. The Jobs board, the Dashboard and Finance all sit in one,
+     which is what makes their content line up at every width. */
   .container-site {
     margin-inline: auto;
     width: 100%;
@@ -15,63 +19,13 @@
   @media (min-width: 640px) {
     .container-site { padding-inline: 2rem; }
   }
-
-  /* Mono "spec" label — the technical / data voice */
-  .spec {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-  }
-
-  /* Buttons — ember primary, matching the Hub */
-  .btn-primary,
-  .btn-dark,
-  .btn-outline {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    border-radius: 4px;
-    font-weight: 600;
-    transition: all 0.2s;
-    padding: 0.75rem 1.5rem;
-    cursor: pointer;
-  }
-  .btn-primary {
-    background-color: #e4572e;
-    color: #fff;
-    box-shadow: 0 6px 20px -8px rgba(228, 87, 46, 0.7);
-  }
-  .btn-primary:hover { background-color: #b83c18; }
-  .btn-dark {
-    background-color: #0d1b2a;
-    color: #fff;
-  }
-  .btn-dark:hover { background-color: #081521; }
-  .btn-outline {
-    border: 1px solid rgba(22, 32, 43, 0.2);
-    background: transparent;
-    color: #16202b;
-  }
-  .btn-outline:hover {
-    border-color: rgba(22, 32, 43, 0.4);
-    background: rgba(22, 32, 43, 0.03);
-  }
 }
 
-/* NAMING RULE — the two design systems must never share a class name.
-   src/styles.css (the jobs UI) is hand-rolled and UNLAYERED, so any selector
-   it defines beats Tailwind's layered utilities everywhere in the app. Its
-   `.grid`/`.card` therefore silently hijacked every `grid`/`card` element in
-   this Tailwind-styled section: `grid-template-columns: repeat(auto-fill,
-   minmax(300px,1fr))` and `min-height: 55vh` overrode every `grid-cols-*`,
-   so the whole Finance section rendered as one enormous single-column stack.
-   They are now `.job-grid`/`.job-card`. Prefix any new jobs-UI class the same
-   way rather than taking a name Tailwind also ships. */
-
-/* Printing an invoice: hide the app chrome so only the sheet prints. */
-@media print {
-  .topbar { display: none !important; }
-}
+/* NAMING RULE — nothing here may take a name Tailwind also ships.
+   src/styles.css (the page base) is UNLAYERED, so any selector it defines beats
+   Tailwind's layered utilities everywhere in the app. Its `.grid`/`.card` once
+   silently hijacked every `grid`/`card` element in this Tailwind-styled
+   section: `grid-template-columns: repeat(auto-fill, minmax(300px,1fr))` and
+   `min-height: 55vh` overrode every `grid-cols-*`, so the whole Finance section
+   rendered as one enormous single-column stack. `container-site` is safe
+   because Tailwind ships `container`, not `container-site`. */

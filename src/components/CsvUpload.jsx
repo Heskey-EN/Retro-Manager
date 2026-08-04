@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
+import { Upload } from 'lucide-react'
 import { parseFile } from '../lib/csv'
-import Icon from './Icon'
+import { Button, cx, focusRing } from '../ui'
 
 // EXTENSIONS ONLY. Mixing MIME types in here greys real Excel files out of
 // the Windows picker whenever the machine registers .xlsx with a different
@@ -27,7 +28,10 @@ async function looksLikeSpreadsheet(file) {
 
 // Spreadsheet importer (CSV + Excel). Renders either as a compact toolbar button
 // or a large drag-and-drop dropzone (the empty state), sharing one parse path.
-export default function CsvUpload({ onJobs, onToast, onReview, variant = 'compact' }) {
+//
+// onDark defaults to true because the compact button's only home is the navy
+// top bar; pass false if it ever sits on the paper background.
+export default function CsvUpload({ onJobs, onToast, onReview, variant = 'compact', onDark = true }) {
   const inputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -162,7 +166,13 @@ export default function CsvUpload({ onJobs, onToast, onReview, variant = 'compac
       <>
         {input}
         <div
-          className={`dropzone${dragging ? ' is-active' : ''}`}
+          className={cx(
+            'w-full cursor-pointer rounded-xl border-[1.5px] border-dashed px-6 py-6 text-center transition-colors',
+            dragging
+              ? 'border-ember bg-ember-wash'
+              : 'border-line-strong bg-paper-card hover:border-ember hover:bg-ember-wash',
+            focusRing,
+          )}
           onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
           onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
@@ -171,8 +181,8 @@ export default function CsvUpload({ onJobs, onToast, onReview, variant = 'compac
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker() } }}
         >
-          <div className="dropzone__title">{busy ? 'Importing…' : 'Import a spreadsheet'}</div>
-          <div className="dropzone__hint">CSV or Excel — drag a file here or click to browse</div>
+          <div className="font-display font-semibold text-ink">{busy ? 'Importing…' : 'Import a spreadsheet'}</div>
+          <div className="mt-0.5 text-[13px] text-ink-faint">CSV or Excel — drag a file here or click to browse</div>
         </div>
       </>
     )
@@ -181,9 +191,9 @@ export default function CsvUpload({ onJobs, onToast, onReview, variant = 'compac
   return (
     <>
       {input}
-      <button className="btn" onClick={openPicker} disabled={busy}>
-        <Icon name="upload" /> {busy ? 'Importing…' : 'Import'}
-      </button>
+      <Button onDark={onDark} onClick={openPicker} disabled={busy}>
+        <Upload size={15} aria-hidden /> {busy ? 'Importing…' : 'Import'}
+      </Button>
     </>
   )
 }

@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback } from 'react'
 import JobCard from './JobCard'
+import { Button, EmptyState, cx } from '../ui'
 
 // Presentational grid of job cards with two selection gestures:
 //   - shift / ⌘-click on a card (handled in JobCard) for range / toggle
@@ -25,8 +26,11 @@ export default function JobList({
     // below never ran — leaving the listeners attached so subsequent scrolls
     // kept rewriting the selection.
     if (e.pointerType && e.pointerType !== 'mouse') return
-    // Never start a marquee from an interactive control (status pill, checkbox…).
-    if (e.target.closest('.status-pill, .card__check, button, select, input, textarea, a, label')) return
+    // Never start a marquee from an interactive control. data-no-marquee marks
+    // the ones that are not themselves a form element (the status pill's
+    // padding, the tick box's column) — a class name here would break again
+    // the next time one of those is restyled.
+    if (e.target.closest('button, select, input, textarea, a, label, [data-no-marquee]')) return
     if (drag.current) return // a previous gesture never finished — ignore
 
     const box = gridRef.current.getBoundingClientRect()
@@ -34,7 +38,7 @@ export default function JobList({
       x0: e.clientX, y0: e.clientY,
       pointerId: e.pointerId,
       additive: e.shiftKey || e.metaKey || e.ctrlKey,
-      onCard: !!e.target.closest('.job-card'),
+      onCard: !!e.target.closest('[data-job-id]'),
       moved: false, box,
     }
 
@@ -58,7 +62,7 @@ export default function JobList({
       const bottom = Math.max(d.y0, ev.clientY)
       setRect({ left: left - d.box.left, top: top - d.box.top, width: right - left, height: bottom - top })
       const ids = []
-      gridRef.current.querySelectorAll('.job-card').forEach((el) => {
+      gridRef.current.querySelectorAll('[data-job-id]').forEach((el) => {
         const r = el.getBoundingClientRect()
         if (r.left < right && r.right > left && r.top < bottom && r.bottom > top) ids.push(el.dataset.jobId)
       })
@@ -102,18 +106,9 @@ export default function JobList({
 
   if (!jobs.length) {
     return (
-      <div className="placeholder">
-        {hasFilters ? (
-          <>
-            <p>No jobs match your search or filters.</p>
-            <button type="button" className="btn btn--sm placeholder__action" onClick={onClearFilters}>
-              Clear filters
-            </button>
-          </>
-        ) : (
-          <p>No jobs yet.</p>
-        )}
-      </div>
+      <EmptyState action={hasFilters ? <Button size="sm" onClick={onClearFilters}>Clear filters</Button> : null}>
+        {hasFilters ? 'No jobs match your search or filters.' : 'No jobs yet.'}
+      </EmptyState>
     )
   }
 
@@ -122,7 +117,15 @@ export default function JobList({
   return (
     <div
       ref={gridRef}
-      className={`job-grid${selecting ? ' job-grid--selecting' : ''}${dragging ? ' is-dragging' : ''}`}
+      className={cx(
+        // min() keeps a single column from overflowing a narrow phone, which a
+        // bare minmax(300px, 1fr) does. touch-pan-y leaves vertical scrolling
+        // to the browser — the marquee is a mouse gesture and must never fight
+        // the scroller on a phone.
+        'relative grid touch-pan-y content-start gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))]',
+        'min-h-[55vh]',
+        dragging && 'select-none',
+      )}
       onPointerDown={onPointerDown}
       onClickCapture={onClickCapture}
     >
@@ -133,12 +136,16 @@ export default function JobList({
           onStatusChange={onStatusChange}
           onOpen={onOpen}
           selected={selectedIds ? selectedIds.has(job.id) : false}
+          selecting={selecting}
           onToggleSelect={onToggleSelect}
           onSelectRange={onSelectRange}
         />
       ))}
       {rect && (
-        <div className="marquee" style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} />
+        <div
+          className="pointer-events-none absolute z-[4] rounded border-[1.5px] border-ember bg-ember/[0.12]"
+          style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
+        />
       )}
     </div>
   )

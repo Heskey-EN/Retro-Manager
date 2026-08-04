@@ -11,6 +11,7 @@ import { todayISO, weekStart, addDays, fmtDayMonth, taxYearFor, isWithin } from 
 import { calcTax, setAsideRate, TAX_RATES } from '../lib/tax.js'
 import { Modal, Field, inputCls, StatCard } from '../components/ui.jsx'
 import JobModal from '../components/JobModal.jsx'
+import { Button, Card, CardHead, FilterChip, IconButton } from '../../ui'
 
 function InvoiceModal({ jobs, onClose }) {
   const navigate = useNavigate()
@@ -105,42 +106,43 @@ function InvoiceModal({ jobs, onClose }) {
         </div>
 
         <div>
-          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Line items</span>
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-faint">Line items</span>
           <div className="space-y-2">
             {items.map((it, i) => (
               <div key={i} className="grid grid-cols-[1fr_64px_110px_auto] gap-2">
                 <input className={inputCls} placeholder="Description" value={it.description} onChange={setItem(i, 'description')} />
                 <input type="number" min="1" className={inputCls} value={it.qty} onChange={setItem(i, 'qty')} title="Qty" />
                 <input type="number" min="0" step="0.01" className={inputCls} placeholder="£ each" value={it.unitPrice} onChange={setItem(i, 'unitPrice')} />
-                <button
-                  type="button"
+                <IconButton
+                  label="Remove this line"
+                  tone="danger"
                   onClick={() => setItems((arr) => arr.filter((_, idx) => idx !== i))}
                   disabled={items.length === 1}
-                  className="rounded-lg border border-slate-200 px-2 text-slate-400 hover:text-red-600 disabled:opacity-30"
                 >
                   <Trash2 size={14} />
-                </button>
+                </IconButton>
               </div>
             ))}
           </div>
-          <button
-            type="button"
+          <Button
+            size="sm"
+            tone="ghost"
+            className="mt-2"
             onClick={() => setItems((arr) => [...arr, { description: '', qty: 1, unitPrice: '' }])}
-            className="mt-2 text-xs font-bold uppercase tracking-wide text-brand-blue hover:underline"
           >
             + Add line
-          </button>
+          </Button>
         </div>
 
         <Field label="Notes / payment terms">
           <textarea className={inputCls} rows={2} value={form.notes} onChange={set('notes')} />
         </Field>
 
-        <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-          <div className="text-sm text-slate-500">
+        <div className="flex items-center justify-between border-t border-line pt-3">
+          <div className="text-sm text-ink-faint">
             Total: <span className="font-display text-lg font-bold text-navy">{gbp.format(total)}</span>
           </div>
-          <button type="submit" className="btn-primary rounded-lg">Create invoice</button>
+          <Button type="submit" tone="primary">Create invoice</Button>
         </div>
       </form>
     </Modal>
@@ -234,12 +236,12 @@ export default function Finance() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold">Finance &amp; costs</h1>
-          <p className="flex items-center gap-2 text-sm text-slate-500">
+          <p className="flex items-center gap-2 text-sm text-ink-faint">
             Tax year
             <select
               value={ty.start}
               onChange={(e) => setTyStart(e.target.value)}
-              className="rounded-lg border border-slate-300 px-2 py-1 text-sm font-bold text-navy focus:border-brand-blue focus:outline-none"
+              className="rounded-lg border border-line-strong px-2 py-1 text-sm font-bold text-navy focus:border-brand-blue focus:outline-none"
             >
               {tyOptions.map((t) => (
                 <option key={t.start} value={t.start}>{t.label}</option>
@@ -249,41 +251,36 @@ export default function Finance() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             onClick={() => downloadExport(jobs, expenses)}
-            className="btn-outline rounded-lg !px-5 !py-3"
             title="Download every earning and expense as a spreadsheet"
           >
             <Download size={16} /> Spreadsheet
-          </button>
-          <button onClick={() => setShowJobModal(true)} className="btn-outline rounded-lg !px-5 !py-3">
+          </Button>
+          <Button onClick={() => setShowJobModal(true)}>
             <Briefcase size={16} /> Add assessment
-          </button>
-          <button onClick={() => setShowInvoiceModal(true)} className="btn-primary rounded-lg !px-5 !py-3">
+          </Button>
+          <Button tone="primary" onClick={() => setShowInvoiceModal(true)}>
             <FileText size={16} /> New invoice
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Cost-centre filter */}
-      <div className="mb-4 flex items-center gap-1.5">
+      {/* The same FilterChip the Jobs tab filters status with — one "tap to
+          narrow the list" control in the app rather than one per section. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {[
           ['all', 'Everything'],
           ['business', ACCOUNTS.business],
           ['personal', ACCOUNTS.personal],
         ].map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setAccount(key)}
-            className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${
-              account === key ? 'bg-navy text-white' : 'bg-white text-slate-500 hover:text-navy border border-slate-200'
-            }`}
-          >
+          <FilterChip key={key} active={account === key} onClick={() => setAccount(key)}>
             {label}
-          </button>
+          </FilterChip>
         ))}
         {account !== 'all' && (
-          <span className="ml-2 text-xs text-slate-400">showing {ACCOUNTS[account]} money only</span>
+          <span className="text-xs text-ink-mute">showing {ACCOUNTS[account]} money only</span>
         )}
       </div>
 
@@ -291,25 +288,25 @@ export default function Finance() {
       <div className="mb-2 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard label={`Income · ${ty.label}`} value={gbp.format(income)} sub={`${tyJobUnits} job${tyJobUnits === 1 ? '' : 's'} so far`} />
         <StatCard label="Expenses" value={gbp.format(spent)} sub={`${tyExpenses.length} recorded`} />
-        <StatCard label="Profit" value={gbp.format(profit)} accent={profit >= 0 ? 'text-accent-green' : 'text-red-600'} />
+        <StatCard label="Profit" value={gbp.format(profit)} accent={profit >= 0 ? 'text-accent-green' : 'text-danger'} />
         <StatCard label="Est. tax + NI" value={gbp.format(tax.total)} sub={`tax ${gbp.format(tax.incomeTax)} · NI ${gbp.format(tax.ni)}`} accent="text-accent-orange" />
         <StatCard label="In your pocket" value={gbp.format(tax.takeHome)} sub={rate > 0 ? `set aside ~${Math.round(rate * 100)}% of profit` : 'under the tax-free allowance'} accent="text-accent-green" />
       </div>
-      <p className="mb-6 flex items-start gap-1.5 text-xs text-slate-400">
+      <p className="mb-6 flex items-start gap-1.5 text-xs text-ink-mute">
         <Info size={13} className="mt-0.5 shrink-0" />
         Estimates based on {TAX_RATES.yearLabel} sole-trader rates (personal allowance £12,570, income tax + Class 4 NI on profits).
         Your actual bill via Self Assessment may differ — not tax advice.
       </p>
 
       {/* Week by week */}
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-4 py-3">
-          <h2 className="font-display text-lg font-bold">Week by week</h2>
-        </div>
+      <Card pad={false} className="mb-6 overflow-hidden">
+        <CardHead title="Week by week" />
+        {/* The table keeps its own horizontal scroll — seven money columns
+            cannot fit 375px, and the page itself must never scroll sideways. */}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+              <tr className="text-left text-xs font-bold uppercase tracking-wide text-ink-faint">
                 <th className="px-4 py-2">Week commencing</th>
                 <th className="px-4 py-2 text-right">Jobs</th>
                 <th className="px-4 py-2 text-right">Income</th>
@@ -319,21 +316,21 @@ export default function Finance() {
                 <th className="px-4 py-2 text-right">In your pocket</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line">
               {visibleWeeks.map((r) => {
                 const wkProfit = r.income - r.expenses
                 const setAside = Math.max(0, wkProfit * rate)
                 const isCurrent = r.wk === weekStart(today)
                 return (
-                  <tr key={r.wk} className={isCurrent ? 'bg-blue-50/50' : ''}>
+                  <tr key={r.wk} className={isCurrent ? 'bg-ember-wash/60' : ''}>
                     <td className="px-4 py-2.5 font-semibold">
                       {fmtDayMonth(r.wk)} – {fmtDayMonth(addDays(r.wk, 6))}
                       {isCurrent && <span className="ml-2 rounded-full bg-navy px-2 py-0.5 text-[10px] font-bold uppercase text-white">This week</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right">{r.jobs}</td>
                     <td className="px-4 py-2.5 text-right font-semibold">{gbp.format(r.income)}</td>
-                    <td className="px-4 py-2.5 text-right text-red-600">{r.expenses ? `−${gbp.format(r.expenses)}` : '—'}</td>
-                    <td className={`px-4 py-2.5 text-right font-semibold ${wkProfit < 0 ? 'text-red-600' : ''}`}>{gbp.format(wkProfit)}</td>
+                    <td className="px-4 py-2.5 text-right text-danger">{r.expenses ? `−${gbp.format(r.expenses)}` : '—'}</td>
+                    <td className={`px-4 py-2.5 text-right font-semibold ${wkProfit < 0 ? 'text-danger' : ''}`}>{gbp.format(wkProfit)}</td>
                     <td className="px-4 py-2.5 text-right text-accent-orange">{setAside ? gbp.format(setAside) : '—'}</td>
                     <td className="px-4 py-2.5 text-right font-bold text-accent-green">{gbp.format(wkProfit - setAside)}</td>
                   </tr>
@@ -343,106 +340,103 @@ export default function Finance() {
           </table>
         </div>
         {weekRows.length > 8 && (
-          <button
+          <Button
+            tone="ghost"
             onClick={() => setShowAllWeeks((v) => !v)}
-            className="w-full border-t border-slate-200 py-2 text-xs font-bold uppercase tracking-wide text-brand-blue hover:bg-slate-50"
+            className="w-full rounded-none border-x-0 border-b-0 border-t-line"
           >
             {showAllWeeks ? 'Show recent weeks only' : `Show all ${weekRows.length} weeks`}
-          </button>
+          </Button>
         )}
-      </div>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Expenses (recent — managed on the Expenses tab) */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Receipt size={18} className="text-slate-400" />
-              <h2 className="font-display text-lg font-bold">Recent expenses</h2>
-            </div>
-            <Link to="/expenses" className="text-xs font-bold uppercase tracking-wide text-brand-blue hover:underline">
+        <Card pad={false}>
+          <CardHead title="Recent expenses">
+            <Button as={Link} to="/expenses" size="sm" tone="ghost" className="no-underline">
               Add &amp; manage →
-            </Link>
-          </div>
+            </Button>
+          </CardHead>
           <div className="p-3">
             {sortedExpenses.length === 0 ? (
-              <p className="px-1 py-4 text-sm text-slate-500">
-                No expenses yet — head to the <Link to="/expenses" className="font-bold text-brand-blue hover:underline">Expenses tab</Link> to add fuel, kit, insurance…
+              <p className="px-1 py-4 text-sm text-ink-faint">
+                No expenses yet — head to the <Link to="/expenses" className="font-bold text-ember-deep">Expenses tab</Link> to add fuel, kit, insurance…
               </p>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-line">
                 {sortedExpenses.slice(0, 6).map((x) => (
                   <li key={x.id} className="flex items-center gap-3 px-1 py-2">
-                    <span className="w-16 shrink-0 text-xs text-slate-500">{fmtDayMonth(x.date)}</span>
+                    <span className="w-16 shrink-0 font-mono text-xs tabular-nums text-ink-faint">{fmtDayMonth(x.date)}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{x.description || x.category}</span>
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-ink-faint">
                         {x.category}
-                        {accountOf(x) === 'personal' && <span className="ml-1.5 font-bold text-brand-blue">· Personal</span>}
+                        {accountOf(x) === 'personal' && <span className="ml-1.5 font-bold text-ember-deep">· Personal</span>}
                       </span>
                     </span>
-                    <span className="text-sm font-bold">−{gbp.format(x.amount)}</span>
+                    <span className="font-mono text-sm font-bold tabular-nums">−{gbp.format(x.amount)}</span>
                   </li>
                 ))}
               </ul>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Invoices */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <FileText size={18} className="text-slate-400" />
-              <h2 className="font-display text-lg font-bold">Invoices</h2>
-            </div>
+        <Card pad={false}>
+          <CardHead title="Invoices">
             {unpaidInvoices.length > 0 && (
-              <span className="text-xs font-bold text-accent-orange">
+              <span className="font-mono text-xs font-bold tabular-nums text-accent-orange">
                 {gbp.format(unpaidInvoices.reduce((s, i) => s + invoiceTotal(i), 0))} outstanding
               </span>
             )}
-          </div>
+          </CardHead>
           <div className="p-3">
             {sortedInvoices.length === 0 ? (
-              <p className="px-1 py-4 text-sm text-slate-500">
+              <p className="px-1 py-4 text-sm text-ink-faint">
                 No invoices yet — hit <strong>New invoice</strong> and it'll fill itself in from a job.
               </p>
             ) : (
-              <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
+              <ul className="max-h-96 divide-y divide-line overflow-y-auto">
                 {sortedInvoices.map((inv) => (
-                  <li key={inv.id} className="flex items-center gap-3 px-1 py-2.5">
+                  <li key={inv.id} className="flex items-center gap-2 px-1 py-2.5">
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">
                         {inv.number} · {inv.customerName}
                       </span>
-                      <span className="block text-xs text-slate-500">{fmtDayMonth(inv.date)} · {gbp.format(invoiceTotal(inv))}</span>
+                      <span className="block text-xs text-ink-faint">{fmtDayMonth(inv.date)} · {gbp.format(invoiceTotal(inv))}</span>
                     </span>
+                    {/* Not the kit's Select wrapper: this is a bare control in a
+                        dense row, where the 44px field height would set the row
+                        height for the whole list. */}
                     <select
                       value={inv.status}
                       onChange={(e) => updateInvoice(inv.id, { status: e.target.value })}
-                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                      className="rounded-lg border border-line-strong bg-paper-card px-2 py-1 text-xs font-semibold text-ink"
                       title="Invoice status"
                     >
                       <option value="draft">Draft</option>
                       <option value="sent">Sent</option>
                       <option value="paid">Paid</option>
                     </select>
-                    <Link to={`/invoice/${inv.id}`} className="p-1 text-slate-400 hover:text-navy" title="View / print">
+                    <IconButton as={Link} to={`/invoice/${inv.id}`} label="View / print" size="sm">
                       <Eye size={16} />
-                    </Link>
-                    <button
+                    </IconButton>
+                    <IconButton
+                      label="Delete invoice"
+                      tone="danger"
+                      size="sm"
                       onClick={() => window.confirm('Delete this invoice?') && deleteInvoice(inv.id)}
-                      className="p-1 text-slate-300 hover:text-red-600"
-                      title="Delete invoice"
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </IconButton>
                   </li>
                 ))}
               </ul>
             )}
           </div>
-        </div>
+        </Card>
       </div>
 
       {showJobModal && <JobModal onClose={() => setShowJobModal(false)} />}

@@ -14,19 +14,24 @@ export function cx(...parts) {
 
 // The one focus treatment, applied to everything focusable in the kit.
 //
-// It is an OUTLINE rather than a box-shadow ring on purpose. styles.css sets
-// `:where(a, button, [tabindex], input, select):focus-visible { outline: 2px
-// solid var(--brand); outline-offset: 2px }` UNLAYERED, so it beats any
-// layered Tailwind utility including focus:outline-none — the Finance tab has
-// been quietly drawing both its own 1px ring and that 2px outline on every
-// focused input. Matching the outline instead of fighting it means the kit
-// looks identical before and after styles.css is deleted, and there is only
-// ever one ring on screen.
+// It is an OUTLINE rather than a box-shadow ring on purpose. styles.css keeps
+// a floor — `:where(a, button, [tabindex], input, select):focus-visible {
+// outline: 2px solid ember; outline-offset: 2px }` — so that anything
+// focusable which is NOT a kit component still gets a ring. Matching it here
+// rather than fighting it means there is one focus treatment in the app and
+// only ever one ring on screen.
 export const focusRing =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember'
 
 // Same idea for a control sitting on the navy chrome, where ember-on-navy is
 // hard to see.
+//
+// This used not to win: the styles.css floor set the `outline` SHORTHAND,
+// colour included, and being unlayered it beat this layered outline-color, so
+// a focused control on the navy chrome drew an ember ring you could barely
+// see. The floor is inside `@layer base` now, so a utility that means to
+// change the colour can. Verified in the browser: a probe carrying these
+// classes resolves to rgb(255,255,255), a plain one to ember.
 export const focusRingOnDark =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
 

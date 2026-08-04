@@ -14,6 +14,7 @@ import { isSuiteConfigured } from './lib/supabaseClient.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useBizRoute, toHash } from './router.jsx'
 import { Modal, Field, inputCls } from './components/ui.jsx'
+import { Button, IconButton, cx, focusRing } from '../ui'
 import Dashboard from './pages/Dashboard.jsx'
 import Finance from './pages/Finance.jsx'
 import Expenses from './pages/Expenses.jsx'
@@ -83,26 +84,26 @@ function SettingsModal({ onClose }) {
         <Field label="Invoice number prefix">
           <input className={inputCls} value={form.invoicePrefix} onChange={set('invoicePrefix')} />
         </Field>
-        <button type="submit" className="btn-primary w-full rounded-lg">Save settings</button>
+        <Button type="submit" tone="primary" className="w-full">Save settings</Button>
       </form>
 
-      <div className="mt-5 border-t border-slate-200 pt-4">
-        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Backup</div>
-        <p className="mb-3 text-xs text-slate-500">
+      <div className="mt-5 border-t border-line pt-4">
+        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-faint">Backup</div>
+        <p className="mb-3 text-xs text-ink-faint">
           {isSuiteConfigured
             ? 'Your business data is shared with your organisation in the cloud; only receipt photos stay on this device. A backup captures a full snapshot — restoring replaces the organisation’s shared data for everyone.'
             : 'Your finance data — including receipt photos — is stored in this browser. Download a backup regularly, and restore it here if you move device (this is also how you bring data over from the old Business Hub).'}
         </p>
         <div className="flex gap-2">
-          <button type="button" onClick={() => exportBackup()} className="btn-outline flex-1 rounded-lg !px-3 !py-2 !text-xs">
+          <Button size="sm" onClick={() => exportBackup()} className="flex-1">
             <Download size={14} /> Download backup
-          </button>
-          <button type="button" onClick={() => fileRef.current?.click()} className="btn-outline flex-1 rounded-lg !px-3 !py-2 !text-xs">
+          </Button>
+          <Button size="sm" onClick={() => fileRef.current?.click()} className="flex-1">
             <Upload size={14} /> Restore backup
-          </button>
+          </Button>
           <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={onImportFile} />
         </div>
-        {importMsg && <p className="mt-2 text-xs font-semibold text-brand-blue">{importMsg}</p>}
+        {importMsg && <p className="mt-2 text-xs font-semibold text-ember-deep">{importMsg}</p>}
       </div>
 
       <CleanupDuplicates />
@@ -115,16 +116,16 @@ function SettingsModal({ onClose }) {
 function SyncChip() {
   const status = useCloudStatus()
   const cfg = {
-    ready: { dot: 'bg-emerald-500', label: 'Saved' },
+    ready: { dot: 'bg-moss', label: 'Saved' },
     syncing: { dot: 'bg-amber', label: 'Saving…' },
     loading: { dot: 'bg-amber', label: 'Loading…' },
     offline: { dot: 'bg-amber', label: 'Live sync offline' },
-    error: { dot: 'bg-red-500', label: 'Save failed' },
+    error: { dot: 'bg-danger', label: 'Save failed' },
   }[status]
   if (!cfg) return null
   return (
     <span
-      className="flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500"
+      className="flex items-center gap-1.5 rounded-full border border-line bg-paper-card px-2.5 py-1 text-[11px] font-semibold text-ink-faint"
       role="status"
     >
       <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
@@ -139,7 +140,10 @@ const TABS = [
   { to: '/expenses', page: 'expenses', label: 'Expenses', icon: Receipt },
 ]
 
-export default function BusinessSection() {
+// `jobs` and `onOpenJob` come from App and are for the Dashboard's calendar
+// only — it shows the real jobs list now, not just the rows Finance derives
+// from their costing. Everything else in here still reads the business store.
+export default function BusinessSection({ jobs = [], onOpenJob }) {
   const [showSettings, setShowSettings] = useState(false)
   const [showTeam, setShowTeam] = useState(false)
   const route = useBizRoute() || { page: 'dashboard' }
@@ -157,6 +161,9 @@ export default function BusinessSection() {
       <div className="biz font-sans text-ink">
         <div className="container-site pt-4 print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* Sub-nav within Finance. Anchors, not buttons — same rule as the
+                app's section tabs: anything that changes the URL must be
+                openable in a new tab. 44px tall so a thumb can hit them. */}
             <nav className="flex items-center gap-1.5">
               {TABS.map(({ to, page, label, icon: Icon }) => {
                 const active = route.page === page || (page === 'finance' && route.page === 'invoice')
@@ -164,9 +171,15 @@ export default function BusinessSection() {
                   <a
                     key={page}
                     href={toHash(to)}
-                    className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                      active ? 'bg-navy text-white' : 'border border-slate-200 bg-white text-slate-500 hover:text-navy'
-                    }`}
+                    aria-current={active ? 'page' : undefined}
+                    className={cx(
+                      'inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold',
+                      'no-underline transition-colors',
+                      active
+                        ? 'border-navy bg-navy text-white'
+                        : 'border-line-strong bg-paper-card text-ink-faint hover:border-ink-faint hover:text-ink',
+                      focusRing,
+                    )}
                   >
                     <Icon size={15} />
                     <span className="hidden sm:inline">{label}</span>
@@ -177,33 +190,36 @@ export default function BusinessSection() {
             <div className="flex items-center gap-1.5">
               {isSuiteConfigured && <SyncChip />}
               {configured && isAdmin && (
-                <button
+                <Button
+                  size="sm"
                   onClick={() => setShowTeam(true)}
-                  className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 hover:text-navy"
+                  className="rounded-full"
                   title="Choose which team members can log expenses"
                 >
                   <Users size={15} />
                   <span className="hidden sm:inline">Team expenses</span>
-                </button>
+                </Button>
               )}
-              <button
+              <IconButton
+                size="sm"
+                label="Finance settings"
                 onClick={() => setShowSettings(true)}
-                className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 hover:text-navy"
-                title="Finance settings"
+                className="rounded-full border-line-strong bg-paper-card"
               >
                 <Settings size={15} />
-              </button>
+              </IconButton>
               {!isSuiteConfigured && (
-                <button
+                <IconButton
+                  size="sm"
+                  label="Lock the finance section"
                   onClick={() => {
                     lockHub()
                     window.location.reload()
                   }}
-                  className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 hover:text-navy"
-                  title="Lock the finance section"
+                  className="rounded-full border-line-strong bg-paper-card"
                 >
                   <Lock size={15} />
-                </button>
+                </IconButton>
               )}
             </div>
           </div>
@@ -217,7 +233,7 @@ export default function BusinessSection() {
           ) : route.page === 'expenses' ? (
             <Expenses />
           ) : (
-            <Dashboard />
+            <Dashboard jobs={jobs} onOpenJob={onOpenJob} />
           )}
         </main>
 

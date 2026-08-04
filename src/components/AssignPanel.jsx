@@ -1,3 +1,4 @@
+import { Field, Input, Select } from '../ui'
 import { JOB_ROLES, setAssignment } from '../lib/roles'
 import { useOrgMembers } from '../hooks/useOrgMembers'
 
@@ -12,14 +13,17 @@ export default function AssignPanel({ assignments, onChange, disabled }) {
   const set = (roleKey, person) => onChange(setAssignment(assignments, roleKey, person))
 
   return (
-    <div className="assign">
+    // auto-fit rather than fixed breakpoints: this renders both in a full-width
+    // panel on the job view and inside a 576px dialog, and the column count
+    // should follow the box it is in, not the window. min() keeps the track
+    // from outgrowing a 375px screen and forcing the page sideways.
+    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr))]">
       {JOB_ROLES.map((role) => {
         const current = assignments?.[role.key]
         return (
-          <label className="field assign__row" key={role.key}>
-            <span>{role.label}</span>
+          <Field label={role.label} key={role.key}>
             {canList ? (
-              <select
+              <Select
                 value={current?.id || (current?.name ? '__typed__' : '')}
                 disabled={disabled}
                 onChange={(e) => {
@@ -38,9 +42,9 @@ export default function AssignPanel({ assignments, onChange, disabled }) {
                 {current?.name && !members.some((m) => m.id === current.id) && (
                   <option value="__typed__">{current.name}</option>
                 )}
-              </select>
+              </Select>
             ) : (
-              <input
+              <Input
                 type="text"
                 value={current?.name || ''}
                 disabled={disabled}
@@ -48,7 +52,7 @@ export default function AssignPanel({ assignments, onChange, disabled }) {
                 onChange={(e) => set(role.key, e.target.value.trim() ? { id: current?.id, name: e.target.value } : null)}
               />
             )}
-          </label>
+          </Field>
         )
       })}
     </div>

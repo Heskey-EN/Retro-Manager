@@ -16,10 +16,10 @@ const pads = {
   hero: 'px-5 py-12 sm:py-16 gap-4',
 }
 
-export function EmptyState({ size = 'default', icon, title, action, className, children }) {
+export function EmptyState({ size = 'default', icon, title, action, className, children, ...rest }) {
   const hero = size === 'hero'
   return (
-    <div className={cx('flex flex-col items-center justify-center text-center', pads[size] || pads.default, className)}>
+    <div {...rest} className={cx('flex flex-col items-center justify-center text-center', pads[size] || pads.default, className)}>
       {icon && <div className="text-ink-mute" aria-hidden>{icon}</div>}
       {title && (
         <h2 className={cx('font-display font-semibold text-ink', hero ? 'text-2xl sm:text-3xl' : 'text-base')}>

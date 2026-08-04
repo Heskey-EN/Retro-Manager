@@ -26,9 +26,9 @@ export const inputClass = cx(
 // tap target includes the label text. Pass as="div" when the "control" is a
 // group (radios, a segmented control, a tag editor) — a <label> wrapping more
 // than one control has undefined behaviour when clicked.
-export function Field({ label, hint, error, as: Tag = 'label', className, children }) {
+export function Field({ label, hint, error, as: Tag = 'label', className, children, ...rest }) {
   return (
-    <Tag className={cx('grid min-w-0 gap-1.5', className)}>
+    <Tag {...rest} className={cx('grid min-w-0 gap-1.5', className)}>
       {label && (
         <span className="text-xs font-bold uppercase tracking-wide text-ink-faint">{label}</span>
       )}

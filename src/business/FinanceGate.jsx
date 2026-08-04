@@ -14,6 +14,7 @@ import {
 import { isSuiteConfigured, HUB_URL } from './lib/supabaseClient.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { inputCls } from './components/ui.jsx'
+import { Button } from '../ui'
 
 async function hash(text) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`ef-hub:${text}`))
@@ -35,14 +36,14 @@ export function lockHub() {
 function GateShell({ children }) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm animate-fade-up rounded-2xl border border-ink/10 bg-white p-8 shadow-lift">
+      <div className="w-full max-w-sm animate-fade-up rounded-2xl border border-line bg-paper-card p-8 shadow-lift">
         <div className="mb-6 flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy text-accent-green">
             <Leaf size={22} />
           </span>
           <div>
             <div className="font-display text-lg font-bold leading-tight">Assessment Manager</div>
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-500">Finance</div>
+            <div className="text-xs font-bold uppercase tracking-widest text-ink-faint">Finance</div>
           </div>
         </div>
         {children}
@@ -93,7 +94,7 @@ function CloudBoot({ orgId, children }) {
   if (phase === 'connecting') {
     return (
       <GateShell>
-        <p className="flex items-center gap-2 text-sm text-slate-500">
+        <p className="flex items-center gap-2 text-sm text-ink-faint">
           <Loader2 size={16} className="animate-spin" /> Connecting to your organisation…
         </p>
       </GateShell>
@@ -104,12 +105,12 @@ function CloudBoot({ orgId, children }) {
     return (
       <GateShell>
         <h1 className="mb-1 text-xl font-bold">Couldn't load your data</h1>
-        <p className="mb-5 text-sm text-slate-500">
+        <p className="mb-5 text-sm text-ink-faint">
           Something went wrong reaching the suite backend — check your connection and try again.
         </p>
-        <button type="button" onClick={() => window.location.reload()} className="btn-primary w-full rounded-lg">
+        <Button tone="primary" onClick={() => window.location.reload()} className="w-full">
           Try again
-        </button>
+        </Button>
       </GateShell>
     )
   }
@@ -118,32 +119,31 @@ function CloudBoot({ orgId, children }) {
     return (
       <GateShell>
         <h1 className="mb-1 text-xl font-bold">Move this device's data to your organisation?</h1>
-        <p className="mb-5 text-sm text-slate-500">
+        <p className="mb-5 text-sm text-ink-faint">
           This browser has tracker data from before the suite login (jobs, expenses,
           invoices). Upload it once and it becomes your organisation's shared data,
           available on every device. The copy on this device is kept as a backup.
         </p>
         <div className="space-y-2">
-          <button
-            type="button"
+          <Button
+            tone="primary"
+            className="w-full"
             onClick={() => {
               uploadLocalToCloud()
               setPhase('ready')
             }}
-            className="btn-primary w-full rounded-lg"
           >
             <CloudUpload size={16} /> Upload this device's data
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            className="w-full"
             onClick={() => {
               localStorage.setItem(migrationSkipKey(orgId), '1')
               setPhase('ready')
             }}
-            className="btn-outline w-full rounded-lg"
           >
             Start fresh instead
-          </button>
+          </Button>
         </div>
       </GateShell>
     )
@@ -158,7 +158,7 @@ function SuiteGate({ children }) {
   if (auth.loading) {
     return (
       <GateShell>
-        <p className="flex items-center gap-2 text-sm text-slate-500">
+        <p className="flex items-center gap-2 text-sm text-ink-faint">
           <Loader2 size={16} className="animate-spin" /> Checking your account…
         </p>
       </GateShell>
@@ -171,13 +171,13 @@ function SuiteGate({ children }) {
     return (
       <GateShell>
         <h1 className="mb-1 text-xl font-bold">Sign in through the Retrofit Suite</h1>
-        <p className="mb-5 text-sm text-slate-500">
+        <p className="mb-5 text-sm text-ink-faint">
           Finance uses your Eco Futures suite account. Sign in at the Hub, then come
           back to this tab and you'll be straight in.
         </p>
-        <a href={`${HUB_URL}/retrofit-suite`} className="btn-primary w-full rounded-lg">
+        <Button as="a" tone="primary" href={`${HUB_URL}/retrofit-suite`} className="w-full no-underline">
           <Lock size={16} /> Sign in at the Hub
-        </a>
+        </Button>
       </GateShell>
     )
   }
@@ -186,13 +186,13 @@ function SuiteGate({ children }) {
     return (
       <GateShell>
         <h1 className="mb-1 text-xl font-bold">Admins only</h1>
-        <p className="mb-5 text-sm text-slate-500">
+        <p className="mb-5 text-sm text-ink-faint">
           Business finances are only available to Organisation Admins. If you think
           you should have access, ask your admin.
         </p>
-        <a href="#/jobs" className="btn-outline w-full rounded-lg">
+        <Button as="a" href="#/jobs" className="w-full no-underline">
           Back to your jobs
-        </a>
+        </Button>
       </GateShell>
     )
   }
@@ -231,7 +231,7 @@ function PasscodeGate({ children }) {
     <GateShell>
       <form onSubmit={submit}>
         <h1 className="mb-1 text-xl font-bold">{firstTime ? 'Set up your passcode' : 'Welcome back'}</h1>
-        <p className="mb-5 text-sm text-slate-500">
+        <p className="mb-5 text-sm text-ink-faint">
           {firstTime
             ? 'Choose a passcode to protect the finance section on this device.'
             : 'Enter your passcode to open the finance section.'}
@@ -257,12 +257,12 @@ function PasscodeGate({ children }) {
           )}
         </div>
 
-        {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-sm font-semibold text-danger">{error}</p>}
 
-        <button type="submit" className="btn-primary mt-5 w-full rounded-lg">
+        <Button type="submit" tone="primary" className="mt-5 w-full">
           <Lock size={16} />
           {firstTime ? 'Create & open' : 'Unlock'}
-        </button>
+        </Button>
       </form>
     </GateShell>
   )

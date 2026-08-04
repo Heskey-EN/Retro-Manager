@@ -17,9 +17,10 @@ const tones = {
   info: 'bg-navy',
 }
 
-export function Toast({ tone = 'info', action, onDismiss, className, children }) {
+export function Toast({ tone = 'info', action, onDismiss, className, children, ...rest }) {
   return (
     <div
+      {...rest}
       role="status"
       aria-live="polite"
       className={cx(

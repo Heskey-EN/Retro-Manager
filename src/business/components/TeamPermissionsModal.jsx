@@ -60,14 +60,14 @@ export default function TeamPermissionsModal({ onClose }) {
 
   return (
     <Modal title="Who can log expenses?" onClose={onClose}>
-      <p className="mb-4 text-sm text-slate-500">
+      <p className="mb-4 text-sm text-ink-faint">
         Ticked team members get an <strong>Expenses</strong> tab in Assessment Manager where they can
         log what they've spent — it lands straight in your Finance figures. They never see
         finances, invoices or anyone else's expenses.
       </p>
 
       {!rows && !error && (
-        <p className="flex items-center gap-2 py-4 text-sm text-slate-500">
+        <p className="flex items-center gap-2 py-4 text-sm text-ink-faint">
           <Loader2 size={16} className="animate-spin" /> Loading your team…
         </p>
       )}
@@ -80,20 +80,20 @@ export default function TeamPermissionsModal({ onClose }) {
       )}
 
       {rows && workers.length === 0 && (
-        <p className="py-2 text-sm text-slate-500">
+        <p className="py-2 text-sm text-ink-faint">
           No level 1–2 team members yet — invite them from Manage team on the Hub.
         </p>
       )}
 
       {workers.length > 0 && (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-line">
           {workers.map((r) => (
             <li key={r.id} className="flex items-center gap-3 py-2.5">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{nameOf(r)}</span>
-                <span className="block text-xs text-slate-500">{LEVEL_NAMES[r.access_level]}</span>
+                <span className="block text-xs text-ink-faint">{LEVEL_NAMES[r.access_level]}</span>
               </span>
-              <label className="flex cursor-pointer items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-bold uppercase tracking-wide text-ink-faint">
                 {busyId === r.id ? (
                   <Loader2 size={14} className="animate-spin" />
                 ) : (
@@ -113,12 +113,12 @@ export default function TeamPermissionsModal({ onClose }) {
       )}
 
       {admins.length > 0 && (
-        <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400">
+        <p className="mt-3 border-t border-line pt-3 text-xs text-ink-mute">
           Organisation Admins ({admins.map(nameOf).join(', ')}) always have full Finance access.
         </p>
       )}
 
-      {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-3 text-sm font-semibold text-danger">{error}</p>}
     </Modal>
   )
 }

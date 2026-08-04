@@ -6,6 +6,7 @@ import {
 import { fileToReceipt, putReceipt, getReceipt, deleteReceipt } from '../lib/receipts.js'
 import { todayISO, taxYearFor, isWithin, fmtDayMonth } from '../lib/dates.js'
 import { Modal, Field, inputCls, StatCard } from '../components/ui.jsx'
+import { Button, Card, IconButton } from '../../ui'
 
 // Brand-led categorical palette — anchored on the Eco Futures family
 // (ember / navy / moss / amber) with harmonious supporting hues so the
@@ -45,19 +46,19 @@ function ReceiptViewer({ receiptId, name, type, onClose }) {
   return (
     <Modal title={name || 'Receipt'} onClose={onClose} wide>
       {failed ? (
-        <p className="py-8 text-center text-sm text-slate-500">Couldn’t load this receipt.</p>
+        <p className="py-8 text-center text-sm text-ink-faint">Couldn’t load this receipt.</p>
       ) : !src ? (
-        <p className="py-8 text-center text-sm text-slate-400">Loading…</p>
+        <p className="py-8 text-center text-sm text-ink-mute">Loading…</p>
       ) : (
         <div className="space-y-3">
           {isPdf ? (
-            <iframe title={name || 'Receipt'} src={src} className="h-[70vh] w-full rounded-lg border border-slate-200" />
+            <iframe title={name || 'Receipt'} src={src} className="h-[70vh] w-full rounded-lg border border-line" />
           ) : (
             <img src={src} alt={name || 'Receipt'} className="mx-auto max-h-[70vh] w-auto rounded-lg" />
           )}
-          <a href={src} download={name || 'receipt'} className="btn-outline w-full rounded-lg !py-2.5 !text-xs">
+          <Button as="a" href={src} download={name || 'receipt'} className="w-full no-underline">
             <Download size={14} /> Download
-          </a>
+          </Button>
         </div>
       )}
     </Modal>
@@ -97,32 +98,26 @@ function ReceiptControl({ value, onChange, onView, busy, setBusy, error, setErro
     <div>
       <input ref={fileRef} type="file" accept={RECEIPT_ACCEPT} className="hidden" onChange={pick} />
       {value?.receiptId ? (
-        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="flex items-center gap-2 rounded-lg border border-line bg-sunken px-3 py-2">
           <Paperclip size={14} className="shrink-0 text-accent-green" />
           <span className="min-w-0 flex-1 truncate text-xs font-semibold">{value.receiptName || 'Receipt attached'}</span>
-          {onView && (
-            <button type="button" onClick={onView} className="text-xs font-bold uppercase tracking-wide text-brand-blue hover:underline">
-              View
-            </button>
-          )}
-          <button type="button" onClick={() => fileRef.current?.click()} className="text-xs font-bold uppercase tracking-wide text-slate-500 hover:underline">
-            Replace
-          </button>
-          <button type="button" onClick={remove} className="text-slate-400 hover:text-red-600" title="Remove receipt">
+          {onView && <Button size="sm" tone="ghost" onClick={onView}>View</Button>}
+          <Button size="sm" tone="ghost" onClick={() => fileRef.current?.click()}>Replace</Button>
+          <IconButton label="Remove receipt" tone="danger" size="sm" onClick={remove}>
             <X size={14} />
-          </button>
+          </IconButton>
         </div>
       ) : (
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 hover:border-brand-blue hover:text-brand-blue disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-line-strong px-3 py-2 text-xs font-bold uppercase tracking-wide text-ink-faint hover:border-brand-blue hover:text-brand-blue disabled:opacity-50"
         >
           <Paperclip size={14} /> {busy ? 'Saving…' : 'Attach receipt (photo or PDF)'}
         </button>
       )}
-      {error && <p className="mt-1 text-xs font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs font-semibold text-danger">{error}</p>}
     </div>
   )
 }
@@ -147,7 +142,7 @@ function AddExpenseCard() {
   }
 
   return (
-    <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="mb-5 rounded-xl border border-line bg-white p-4 shadow-sm">
       <h2 className="mb-3 font-display text-lg font-bold">Add an expense</h2>
       <form onSubmit={submit} className="grid grid-cols-2 gap-3 lg:grid-cols-12">
         <Field label="What was it?" className="col-span-2 lg:col-span-4">
@@ -171,13 +166,13 @@ function AddExpenseCard() {
           </select>
         </Field>
         <div className="col-span-2 lg:col-span-6">
-          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Receipt</span>
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-faint">Receipt</span>
           <ReceiptControl value={receipt} onChange={setReceipt} busy={busy} setBusy={setBusy} error={error} setError={setError} />
         </div>
         <div className="col-span-2 flex items-end lg:col-span-6">
-          <button type="submit" disabled={busy} className="btn-primary w-full rounded-lg !py-3 disabled:opacity-50 lg:w-auto lg:!px-10">
+          <Button type="submit" tone="primary" disabled={busy} className="w-full lg:w-auto lg:px-10">
             <Plus size={16} /> Add expense
-          </button>
+          </Button>
           {added && <span className="ml-3 self-center text-sm font-semibold text-accent-green">{added}</span>}
         </div>
       </form>
@@ -196,13 +191,13 @@ function EditExpenseModal({ expense, onView, onClose }) {
   if (expense._linked) {
     return (
       <Modal title="Synced from the Jobs tab" onClose={onClose}>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink-faint">
           This cost comes from the costing on <strong>{expense._linkedJob || 'a job'}</strong> in
           the Jobs tab. Edit the job's costing there and Finance updates automatically.
         </p>
-        <a href="#/jobs" className="btn-primary mt-4 w-full rounded-lg">
+        <Button as="a" tone="primary" href="#/jobs" className="mt-4 w-full no-underline">
           Open the Jobs tab
-        </a>
+        </Button>
       </Modal>
     )
   }
@@ -255,9 +250,9 @@ function EditExpenseModal({ expense, onView, onClose }) {
           </Field>
         </div>
         <div>
-          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Receipt</span>
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-ink-faint">Receipt</span>
           {expense._team ? (
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            <p className="rounded-lg border border-line bg-sunken px-3 py-2 text-xs text-ink-faint">
               Logged by <strong>{expense._teamBy}</strong> — receipts stay on the device that
               logged the expense, so there's nothing to attach here.
             </p>
@@ -274,10 +269,10 @@ function EditExpenseModal({ expense, onView, onClose }) {
           )}
         </div>
         <div className="flex gap-2 pt-1">
-          <button type="button" onClick={remove} className="rounded-lg border-2 border-red-200 px-3 text-red-600 hover:bg-red-50" title="Delete">
+          <IconButton label="Delete this expense" tone="danger" onClick={remove}>
             <Trash2 size={16} />
-          </button>
-          <button type="submit" className="btn-primary flex-1 rounded-lg">Save changes</button>
+          </IconButton>
+          <Button type="submit" tone="primary" className="flex-1">Save changes</Button>
         </div>
       </form>
     </Modal>
@@ -335,24 +330,24 @@ export default function Expenses() {
     <div className="animate-fade-in">
       <div className="mb-5">
         <h1 className="font-display text-2xl font-bold">Expenses</h1>
-        <p className="text-sm text-slate-500">Every pound you spend comes off your profit — and your tax bill. Attach receipts to keep HMRC happy.</p>
+        <p className="text-sm text-ink-faint">Every pound you spend comes off your profit — and your tax bill. Attach receipts to keep HMRC happy.</p>
       </div>
 
       <AddExpenseCard />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label={`Tax year ${ty.label}`} value={gbp.format(tyTotal)} sub={`${tyExpenses.length} expense${tyExpenses.length === 1 ? '' : 's'}`} accent="text-red-600" />
-        <StatCard label="This month" value={gbp.format(monthTotal)} sub={`${thisMonth.length} added`} accent="text-red-600" />
+        <StatCard label={`Tax year ${ty.label}`} value={gbp.format(tyTotal)} sub={`${tyExpenses.length} expense${tyExpenses.length === 1 ? '' : 's'}`} accent="text-danger" />
+        <StatCard label="This month" value={gbp.format(monthTotal)} sub={`${thisMonth.length} added`} accent="text-danger" />
         <StatCard label="With receipts" value={`${withReceipts}/${expenses.length}`} sub="have a photo attached" />
         <StatCard label="All time" value={gbp.format(expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0))} sub={`${expenses.length} recorded`} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
         {/* List */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-3">
+        <div className="rounded-xl border border-line bg-white shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
             <div className="relative min-w-[160px] flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute" />
               <input
                 className={`${inputCls} !pl-8`}
                 placeholder="Search expenses…"
@@ -372,7 +367,7 @@ export default function Expenses() {
           </div>
 
           {groups.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-14 text-slate-400">
+            <div className="flex flex-col items-center gap-2 py-14 text-ink-mute">
               <Receipt size={32} />
               <p className="text-sm">
                 {expenses.length === 0 ? 'No expenses yet — add your first one above.' : 'Nothing matches those filters.'}
@@ -382,18 +377,18 @@ export default function Expenses() {
             <div className="max-h-[560px] overflow-y-auto">
               {groups.map(([month, items]) => (
                 <div key={month}>
-                  <div className="sticky top-0 flex items-center justify-between bg-slate-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  <div className="sticky top-0 flex items-center justify-between bg-sunken px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-ink-faint">
                     <span>{monthLabel(month)}</span>
                     <span>−{gbp.format(items.reduce((s, x) => s + (Number(x.amount) || 0), 0))}</span>
                   </div>
-                  <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-line">
                     {items.map((x) => (
-                      <li key={x.id} className="flex items-center hover:bg-slate-50">
+                      <li key={x.id} className="flex items-center hover:bg-sunken">
                         <button onClick={() => setEditing(x)} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-2.5 text-left">
                           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[x.category] || '#64748b' }} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold">{x.description || x.category}</span>
-                            <span className="block text-xs text-slate-500">
+                            <span className="block text-xs text-ink-faint">
                               {fmtDayMonth(x.date)} · {x.category}
                               {accountOf(x) === 'personal' && <span className="ml-1 font-bold text-brand-blue">· Personal</span>}
                               {x._team && <span className="ml-1 font-bold text-moss">· logged by {x._teamBy}</span>}
@@ -404,7 +399,7 @@ export default function Expenses() {
                         </button>
                         <button
                           onClick={() => (x.receiptId ? setViewing(x) : setEditing(x))}
-                          className={`px-3 py-2.5 ${x.receiptId ? 'text-accent-green hover:text-navy' : 'text-slate-300 hover:text-brand-blue'}`}
+                          className={`px-3 py-2.5 ${x.receiptId ? 'text-accent-green hover:text-navy' : 'text-ink-mute hover:text-brand-blue'}`}
                           title={x.receiptId ? 'View receipt' : 'No receipt — add one'}
                         >
                           <Paperclip size={15} />
@@ -419,19 +414,19 @@ export default function Expenses() {
         </div>
 
         {/* Category breakdown */}
-        <div className="h-fit rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="h-fit rounded-xl border border-line bg-white p-4 shadow-sm">
           <h2 className="mb-3 font-display text-lg font-bold">Where it goes · {ty.label}</h2>
           {catTotals.length === 0 ? (
-            <p className="text-sm text-slate-500">Add expenses and you'll see the breakdown here.</p>
+            <p className="text-sm text-ink-faint">Add expenses and you'll see the breakdown here.</p>
           ) : (
             <div className="space-y-3">
               {catTotals.map(([cat, total]) => (
                 <div key={cat}>
                   <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
                     <span className="font-semibold">{cat}</span>
-                    <span className="font-bold text-slate-500">{gbp.format(total)}</span>
+                    <span className="font-bold text-ink-faint">{gbp.format(total)}</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-2 overflow-hidden rounded-full bg-sunken">
                     <div
                       className="h-full rounded-full"
                       style={{ width: `${Math.max(4, (total / maxCat) * 100)}%`, backgroundColor: CATEGORY_COLORS[cat] || '#64748b' }}

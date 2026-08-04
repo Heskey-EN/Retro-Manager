@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react'
-import Icon from './Icon'
+import { useState } from 'react'
+import { Banner, Button, Field, FieldRow, Input, Modal, Select } from '../ui'
 import { STATUSES, DEFAULT_STATUS } from '../lib/status'
 import TagInput from './TagInput'
 
+// The <form> lives in the modal body but its buttons sit in the footer, where
+// they stay put while a long form scrolls. `form=` is what connects them.
+const FORM_ID = 'add-job-form'
+
 // Modal form for creating a single job by hand. The property address is the
 // job's identity (its headline everywhere in the app), so it leads the form.
-export default function AddJobModal({ onClose, onCreate }) {
+// `initialDate` pre-fills the dates when this was opened from a calendar day.
+export default function AddJobModal({ onClose, onCreate, initialDate }) {
   const [form, setForm] = useState({
     address: '',
     postcode: '',
@@ -13,20 +18,14 @@ export default function AddJobModal({ onClose, onCreate }) {
     customer: '',
     measure: '',
     status: DEFAULT_STATUS,
-    start_date: '',
-    end_date: '',
+    start_date: initialDate || '',
+    end_date: initialDate || '',
     tags: [],
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const canSubmit = form.address.trim() !== '' || form.reference.trim() !== ''
-
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -70,73 +69,81 @@ export default function AddJobModal({ onClose, onCreate }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Add job">
-        <header className="modal__header">
-          <div>
-            <p className="eyebrow">New job</p>
-            <h2 className="modal__title">Add a property</h2>
+    <Modal
+      title="Add a property"
+      onClose={() => !saving && onClose()}
+      footer={
+        <>
+          {/* Full width, so it takes its own line above the buttons and is
+              still on screen when the body has scrolled. */}
+          {error && <Banner tone="danger" className="w-full">{error}</Banner>}
+          <Button onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button type="submit" form={FORM_ID} tone="primary" disabled={saving || !canSubmit}>
+            {saving ? 'Adding…' : 'Add job'}
+          </Button>
+        </>
+      }
+    >
+      <form id={FORM_ID} onSubmit={submit} className="grid gap-3.5">
+        <Field label="Property address">
+          <Input
+            type="text"
+            value={form.address}
+            onChange={set('address')}
+            placeholder="e.g. 27 Larch Close, Preston"
+            autoFocus
+            required={!form.reference?.trim()}
+            aria-required={!form.reference?.trim()}
+          />
+        </Field>
+
+        <FieldRow>
+          <Field label="Postcode">
+            <Input type="text" mono value={form.postcode} onChange={set('postcode')} placeholder="PR2 8HJ" />
+          </Field>
+          <Field label="Reference">
+            <Input type="text" mono value={form.reference} onChange={set('reference')} placeholder="RF-3001" />
+          </Field>
+        </FieldRow>
+
+        <FieldRow>
+          <Field label="Customer">
+            <Input type="text" value={form.customer} onChange={set('customer')} placeholder="Optional" />
+          </Field>
+          <Field label="Measure">
+            <Input type="text" value={form.measure} onChange={set('measure')} placeholder="e.g. Cavity Wall Insulation" />
+          </Field>
+        </FieldRow>
+
+        <FieldRow>
+          <Field label="Status">
+            <Select value={form.status} onChange={set('status')}>
+              {STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </Select>
+          </Field>
+          {/* The two dates are one thing, so they stay paired at every width
+              rather than splitting across the row. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Start">
+              <Input type="date" value={form.start_date} onChange={set('start_date')} />
+            </Field>
+            <Field label="End">
+              <Input type="date" value={form.end_date} onChange={set('end_date')} />
+            </Field>
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" /></button>
-        </header>
-        <form onSubmit={submit} className="modal__form">
-          <label className="field field--full">
-            <span>Property address</span>
-            <input type="text" value={form.address} onChange={set('address')} placeholder="e.g. 27 Larch Close, Preston" autoFocus required={!form.reference?.trim()} aria-required={!form.reference?.trim()} />
-          </label>
-          <div className="modal__row">
-            <label className="field">
-              <span>Postcode</span>
-              <input type="text" className="mono" value={form.postcode} onChange={set('postcode')} placeholder="PR2 8HJ" />
-            </label>
-            <label className="field">
-              <span>Reference</span>
-              <input type="text" className="mono" value={form.reference} onChange={set('reference')} placeholder="RF-3001" />
-            </label>
-          </div>
-          <div className="modal__row">
-            <label className="field">
-              <span>Customer</span>
-              <input type="text" value={form.customer} onChange={set('customer')} placeholder="Optional" />
-            </label>
-            <label className="field">
-              <span>Measure</span>
-              <input type="text" value={form.measure} onChange={set('measure')} placeholder="e.g. Cavity Wall Insulation" />
-            </label>
-          </div>
-          <div className="modal__row">
-            <label className="field">
-              <span>Stage</span>
-              <select value={form.status} onChange={set('status')}>
-                {STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-            </label>
-            <div className="modal__row modal__row--tight">
-              <label className="field">
-                <span>Start</span>
-                <input type="date" value={form.start_date} onChange={set('start_date')} />
-              </label>
-              <label className="field">
-                <span>End</span>
-                <input type="date" value={form.end_date} onChange={set('end_date')} />
-              </label>
-            </div>
-          </div>
-          <div className="field field--full">
-            <span>Tags</span>
-            <TagInput value={form.tags} onChange={(tags) => setForm((f) => ({ ...f, tags }))} placeholder="e.g. SHDF, EWI, Priority" />
-          </div>
-          {error && <p className="modal__error" role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
-          <div className="modal__actions">
-            <button type="button" className="btn" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn--primary" disabled={saving || !canSubmit}>
-              {saving ? 'Adding…' : 'Add job'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </FieldRow>
+
+        {/* as="div": TagInput is a group of controls, not one. */}
+        <Field as="div" label="Tags">
+          <TagInput
+            value={form.tags}
+            onChange={(tags) => setForm((f) => ({ ...f, tags }))}
+            placeholder="e.g. SHDF, EWI, Priority"
+          />
+        </Field>
+      </form>
+    </Modal>
   )
 }

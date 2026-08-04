@@ -12,12 +12,24 @@ import { cx } from './cx'
 // Use <Card pad> for a plain box, or <Card pad={false}> with CardHead/CardBody
 // when it needs a titled header strip with a divider.
 
-export function Card({ as: Tag = 'div', pad = true, interactive = false, className, children, ...rest }) {
+// The surface a card is drawn on. This is a PROP rather than something a
+// caller passes in className, because both are Tailwind utilities and which one
+// wins is decided by their order in the generated stylesheet, not by the order
+// of the class string — `<Card className="bg-ember">` silently renders paper.
+const surfaces = {
+  default: 'border-line bg-paper-card',
+  // The Dashboard's "Add a job" tile: a filled call to action that is still
+  // the same object as the card beside it.
+  ember: 'border-ember bg-ember text-white',
+}
+
+export function Card({ as: Tag = 'div', pad = true, interactive = false, tone = 'default', className, children, ...rest }) {
   return (
     <Tag
       {...rest}
       className={cx(
-        'rounded-xl border border-line bg-paper-card shadow-hairline',
+        'rounded-xl border shadow-hairline',
+        surfaces[tone] || surfaces.default,
         pad && 'p-4',
         // Only for cards that are themselves a button/link. A hover lift on a
         // card you cannot click is a promise the UI does not keep.
