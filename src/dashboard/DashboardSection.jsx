@@ -105,6 +105,7 @@ export default function DashboardSection({ jobs, addJobs, onOpenJob, onToast }) 
             withinDays={7}
             limit={null}
             bookedOnly
+            groupByDay
             onOpenJob={onOpenJob}
           />
         </div>

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { Card, CardHead, EmptyState } from '../ui'
+import { ChevronRight } from 'lucide-react'
+import { Card, CardHead, EmptyState, cx, focusRing } from '../ui'
 import { addDays, todayISO } from '../lib/dates.js'
 import { useCalendarEntries } from './useCalendarEntries.js'
 import { EntryRow } from './EntryRow.jsx'
@@ -18,9 +19,15 @@ const DEFAULT_LIMIT = 6
 // `withinDays` bounds the list to a window (7 = the week ahead) and `limit`
 // null shows every entry in it. The Dashboard uses both: the week's work in
 // full is the thing you actually plan from, so it must not stop at six.
+// "Tue 5 Aug". Built from local midnight, never toISOString — see `until`.
+const dayLabel = (iso) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
+    weekday: 'short', day: 'numeric', month: 'short',
+  })
+
 export default function UpNext({
   jobs = [], title = 'Next up', withinDays, limit = DEFAULT_LIMIT, bookedOnly = false,
-  onOpenJob, onOpenEntry, children,
+  groupByDay = false, onOpenJob, onOpenEntry, children,
 }) {
   const { entries, showMoney } = useCalendarEntries(jobs)
   const today = todayISO()
@@ -49,6 +56,27 @@ export default function UpNext({
     return limit ? list.slice(0, limit) : list
   }, [entries, today, until, limit])
 
+  // One bucket per day that actually has work. A run spanning several days
+  // appears under each of them — it IS on your Wednesday, even though it
+  // started on the Monday — which a flat list ordered by start date hides.
+  const byDay = useMemo(() => {
+    if (!groupByDay) return []
+    const map = new Map()
+    for (const e of upcoming) {
+      for (const d of e.days || [e.start]) {
+        if (d < today || (until && d > until)) continue
+        if (!map.has(d)) map.set(d, [])
+        map.get(d).push(e)
+      }
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, items]) => ({
+        date,
+        items: items.sort((a, b) => (a.time || '99').localeCompare(b.time || '99')),
+      }))
+  }, [upcoming, groupByDay, today, until])
+
   return (
     <Card pad={false}>
       <CardHead title={title} />
@@ -56,6 +84,46 @@ export default function UpNext({
         <EmptyState size="compact">
           {withinDays ? 'Nothing booked in the next week.' : 'Nothing booked yet.'}
         </EmptyState>
+      ) : groupByDay ? (
+        // One collapsible group per day. <details> rather than useState: it is
+        // the browser's own disclosure — keyboard and screen readers already
+        // understand it, and it keeps a whole week glanceable on a phone
+        // instead of a scroll of forty rows.
+        <div className="divide-y divide-line">
+          {byDay.map(({ date, items }) => (
+            <details key={date} open={date === today} className="group">
+              <summary
+                className={cx(
+                  'flex cursor-pointer list-none items-center gap-2 px-4 py-3',
+                  'hover:bg-sunken [&::-webkit-details-marker]:hidden',
+                  focusRing,
+                )}
+              >
+                <ChevronRight
+                  size={15}
+                  className="shrink-0 text-ink-mute transition-transform group-open:rotate-90"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {date === today ? 'Today' : dayLabel(date)}
+                </span>
+                <span className="shrink-0 text-xs text-ink-faint">
+                  {items.length} job{items.length === 1 ? '' : 's'}
+                </span>
+              </summary>
+              <ul className="divide-y divide-line px-2 pb-1">
+                {items.map((e) => (
+                  <EntryRow
+                    key={e.id}
+                    entry={e}
+                    showMoney={showMoney}
+                    onOpenJob={onOpenJob}
+                    onOpenEntry={onOpenEntry}
+                  />
+                ))}
+              </ul>
+            </details>
+          ))}
+        </div>
       ) : (
         <ul className="divide-y divide-line px-2 py-1">
           {upcoming.map((e) => (
