@@ -238,10 +238,12 @@ export default function Finance() {
           <h1 className="font-display text-2xl font-bold">Finance &amp; costs</h1>
           <p className="flex items-center gap-2 text-sm text-ink-faint">
             Tax year
+            {/* text-base until sm: iOS Safari zooms the whole page when a
+                control under 16px takes focus, and it does not zoom back. */}
             <select
               value={ty.start}
               onChange={(e) => setTyStart(e.target.value)}
-              className="rounded-lg border border-line-strong px-2 py-1 text-sm font-bold text-navy focus:border-brand-blue focus:outline-none"
+              className="min-h-11 rounded-lg border border-line-strong px-2 py-1 text-base font-bold text-navy focus:border-brand-blue focus:outline-none sm:min-h-0 sm:text-sm"
             >
               {tyOptions.map((t) => (
                 <option key={t.start} value={t.start}>{t.label}</option>
@@ -350,7 +352,8 @@ export default function Finance() {
         )}
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* grid-cols-1 base: see the note in business/pages/Dashboard.jsx. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Expenses (recent — managed on the Expenses tab) */}
         <Card pad={false}>
           <CardHead title="Recent expenses">
@@ -409,11 +412,13 @@ export default function Finance() {
                     </span>
                     {/* Not the kit's Select wrapper: this is a bare control in a
                         dense row, where the 44px field height would set the row
-                        height for the whole list. */}
+                        height for the whole list. It is still 16px and 44px on
+                        a phone — below 16px iOS zooms the page on focus and
+                        never zooms back — and only goes dense from sm up. */}
                     <select
                       value={inv.status}
                       onChange={(e) => updateInvoice(inv.id, { status: e.target.value })}
-                      className="rounded-lg border border-line-strong bg-paper-card px-2 py-1 text-xs font-semibold text-ink"
+                      className="min-h-11 shrink-0 rounded-lg border border-line-strong bg-paper-card px-2 py-1 text-base font-semibold text-ink sm:min-h-0 sm:text-xs"
                       title="Invoice status"
                     >
                       <option value="draft">Draft</option>

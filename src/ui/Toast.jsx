@@ -26,7 +26,11 @@ export function Toast({ tone = 'info', action, onDismiss, className, children, .
       className={cx(
         // env() is 0 on everything except an iPhone, where it clears the home
         // indicator — without it the toast sits under the swipe bar.
-        'fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2',
+        // --bulk-bar-h is published by BulkActionsBar while a selection is
+        // live and is 0 otherwise: the toast is z-100 and the bar z-55, so
+        // without it a "Moved 3 jobs" message landed square on top of the
+        // bar's own Assign / Costs / Archive / Delete row.
+        'fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom)+var(--bulk-bar-h,0px))] left-1/2 -translate-x-1/2',
         'inline-flex max-w-[min(90vw,32rem)] items-center gap-3.5 rounded-full px-4.5 py-2.5',
         'text-sm text-white shadow-overlay motion-safe:animate-fade-up',
         tones[tone] || tones.info,

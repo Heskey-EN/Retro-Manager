@@ -19,7 +19,9 @@ export default function StatusSelect({ value, onChange, size = 'md' }) {
       data-no-marquee
       className={
         'relative inline-flex shrink-0 items-center gap-1.5 rounded-full border pl-2.5 ' +
-        (size === 'sm' ? 'min-h-10' : 'min-h-11')
+        // Even the dense size is a full 44px on a phone: this is the control
+        // on every card on the board, and the board is the phone screen.
+        (size === 'sm' ? 'min-h-11 sm:min-h-10' : 'min-h-11')
       }
       style={{
         '--status-color': statusColor(value),
@@ -36,7 +38,11 @@ export default function StatusSelect({ value, onChange, size = 'md' }) {
         // The pill sits inside a clickable card; opening the dropdown must not
         // also open the job.
         onClick={(e) => e.stopPropagation()}
-        className="cursor-pointer appearance-none border-0 bg-transparent py-1 pl-0 pr-6 font-sans text-base font-semibold text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember"
+        // self-stretch so the SELECT is as tall as the pill. Only the select
+        // opens the dropdown — the pill's padding around it does nothing — so
+        // without this the real tap target on every card was 32px, not the 44
+        // the pill looks like.
+        className="cursor-pointer appearance-none self-stretch border-0 bg-transparent py-1 pl-0 pr-6 font-sans text-base font-semibold text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember"
       >
         {STATUSES.map((s) => (
           <option key={s.value} value={s.value}>{s.label}</option>

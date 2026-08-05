@@ -123,7 +123,10 @@ export default function JobList({
         // to the browser — the marquee is a mouse gesture and must never fight
         // the scroller on a phone.
         'relative grid touch-pan-y content-start gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))]',
-        'min-h-[55vh]',
+        // dvh, not vh: on iOS vh is the LARGE viewport (toolbars hidden), so a
+        // vh floor overshoots by the height of the address bar while it is
+        // showing and adds dead scroll under a short board.
+        'min-h-[55dvh]',
         dragging && 'select-none',
       )}
       onPointerDown={onPointerDown}

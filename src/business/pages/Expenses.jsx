@@ -52,9 +52,11 @@ function ReceiptViewer({ receiptId, name, type, onClose }) {
       ) : (
         <div className="space-y-3">
           {isPdf ? (
-            <iframe title={name || 'Receipt'} src={src} className="h-[70vh] w-full rounded-lg border border-line" />
+            // dvh: on iOS vh is the large viewport, so 70vh inside a sheet
+            // that is already capped at 92dvh spills past the visible area.
+            <iframe title={name || 'Receipt'} src={src} className="h-[70dvh] w-full rounded-lg border border-line" />
           ) : (
-            <img src={src} alt={name || 'Receipt'} className="mx-auto max-h-[70vh] w-auto rounded-lg" />
+            <img src={src} alt={name || 'Receipt'} className="mx-auto max-h-[70dvh] w-auto rounded-lg" />
           )}
           <Button as="a" href={src} download={name || 'receipt'} className="w-full no-underline">
             <Download size={14} /> Download
@@ -112,7 +114,7 @@ function ReceiptControl({ value, onChange, onView, busy, setBusy, error, setErro
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-line-strong px-3 py-2 text-xs font-bold uppercase tracking-wide text-ink-faint hover:border-brand-blue hover:text-brand-blue disabled:opacity-50"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-line-strong px-3 py-2 text-xs font-bold uppercase tracking-wide text-ink-faint hover:border-brand-blue hover:text-brand-blue disabled:opacity-50"
         >
           <Paperclip size={14} /> {busy ? 'Saving…' : 'Attach receipt (photo or PDF)'}
         </button>
@@ -342,7 +344,10 @@ export default function Expenses() {
         <StatCard label="All time" value={gbp.format(expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0))} sub={`${expenses.length} recorded`} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+      {/* grid-cols-1 base: see the note in business/pages/Dashboard.jsx. An
+          implicit `auto` track takes its floor from min-content, which a long
+          truncated description propagates all the way up. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         {/* List */}
         <div className="rounded-xl border border-line bg-white shadow-sm">
           <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
@@ -399,7 +404,7 @@ export default function Expenses() {
                         </button>
                         <button
                           onClick={() => (x.receiptId ? setViewing(x) : setEditing(x))}
-                          className={`px-3 py-2.5 ${x.receiptId ? 'text-accent-green hover:text-navy' : 'text-ink-mute hover:text-brand-blue'}`}
+                          className={`flex min-h-11 w-11 shrink-0 items-center justify-center ${x.receiptId ? 'text-accent-green hover:text-navy' : 'text-ink-mute hover:text-brand-blue'}`}
                           title={x.receiptId ? 'View receipt' : 'No receipt — add one'}
                         >
                           <Paperclip size={15} />

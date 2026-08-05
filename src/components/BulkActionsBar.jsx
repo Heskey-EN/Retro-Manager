@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { STATUSES } from '../lib/status'
 import { Button, Input, Mono, Select, Z, cx } from '../ui'
 
@@ -11,6 +11,44 @@ import { Button, Input, Mono, Select, Z, cx } from '../ui'
 // controls, and a row that runs off the edge hides whichever one you need.
 export default function BulkActionsBar({ count, onSetStatus, onAddTag, onArchive, onDelete, onCosts, onAssign, onClear, archived }) {
   const [tag, setTag] = useState('')
+  const barRef = useRef(null)
+
+  // This bar is 268px tall at 375px — a third of an iPhone screen — and it is
+  // fixed, so it covered the last two job cards outright, at every scroll
+  // position. Publishing its measured height lets the page reserve exactly
+  // that much at the bottom (App.jsx's <main>) and lets a toast sit above it
+  // (src/ui/Toast.jsx) rather than on top of Delete. Measured, not a constant:
+  // how many rows it wraps into depends on the width and on which actions the
+  // user is allowed.
+  const publish = () => {
+    const el = barRef.current
+    if (!el) return
+    const value = `${Math.ceil(el.getBoundingClientRect().height)}px`
+    const root = document.documentElement
+    if (root.style.getPropertyValue('--bulk-bar-h') !== value) root.style.setProperty('--bulk-bar-h', value)
+  }
+
+  // Every render, so a change in the count (or in what is on offer) is picked
+  // up; plus resize and ResizeObserver for the changes that are not renders.
+  useLayoutEffect(publish)
+
+  useLayoutEffect(() => {
+    const el = barRef.current
+    if (!el) return undefined
+    window.addEventListener('resize', publish)
+    window.addEventListener('orientationchange', publish)
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(publish) : null
+    ro?.observe(el)
+    return () => {
+      window.removeEventListener('resize', publish)
+      window.removeEventListener('orientationchange', publish)
+      ro?.disconnect()
+      // Back to zero the moment the selection is cleared, or the board would
+      // keep a bar's worth of empty space at the bottom for ever.
+      document.documentElement.style.removeProperty('--bulk-bar-h')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const submitTag = (e) => {
     e.preventDefault()
@@ -22,6 +60,7 @@ export default function BulkActionsBar({ count, onSetStatus, onAddTag, onArchive
 
   return (
     <div
+      ref={barRef}
       role="region"
       aria-label="Bulk actions"
       className={cx(

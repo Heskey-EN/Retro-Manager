@@ -4,6 +4,7 @@ import QuickAddJob from './QuickAddJob.jsx'
 import QuickAddExpense from './QuickAddExpense.jsx'
 import Calendar from '../calendar/Calendar.jsx'
 import UpNext from '../calendar/UpNext.jsx'
+import EpcExport from '../calendar/EpcExport.jsx'
 import { Button, Card } from '../ui'
 import { todayISO } from '../lib/dates.js'
 import { initManagerLink } from '../business/lib/managerLink.js'
@@ -107,7 +108,15 @@ export default function DashboardSection({ jobs, addJobs, onOpenJob, onToast }) 
             bookedOnly
             groupByDay
             onOpenJob={onOpenJob}
-          />
+          >
+            {/* The EPC export lives under the week it exports. It is the same
+                list of properties, so this is the one place in the app where
+                what you would send is already on screen — and it is the screen
+                the owner opens on a phone in the morning. It is deliberately
+                NOT in the Jobs header too: that row already scrolls sideways on
+                a 375px screen, and one file needs one door. */}
+            <EpcExport jobs={activeJobs} onToast={onToast} />
+          </UpNext>
         </div>
 
         <div className="space-y-4">

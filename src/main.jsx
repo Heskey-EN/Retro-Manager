@@ -22,6 +22,17 @@ function healHash() {
 healHash()
 window.addEventListener('hashchange', healHash)
 
+// Reloading starts at the top of the page, not wherever you happened to be.
+//
+// The default ('auto') restores a raw pixel offset, and it does so BEFORE the
+// jobs have come back from IndexedDB/Supabase — so the browser restores 525px
+// into a page that is currently 300px long, clamps, and then the real content
+// arrives underneath a scroll position that no longer means anything. That is
+// the intermittency in "sometimes information is behind the header": a raw
+// offset ignores scroll-padding-top, so whatever it lands on can sit inside
+// the sticky bar. Nothing in this app deep-links to a scroll position.
+if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>

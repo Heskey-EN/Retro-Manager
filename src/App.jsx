@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
+import { useMemo, useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { AlertTriangle, LayoutGrid, Plus, Search, Trash2 } from 'lucide-react'
 import { useJobs } from './hooks/useJobs'
 import { useAuth } from './hooks/useAuth'
@@ -59,9 +59,11 @@ const VIEWS = [
 // The section tabs sit on the navy chrome, where the kit's light Button tones
 // would disappear. They are links, not buttons — a tab that changes the URL
 // must be openable in a new tab.
+// min-h-11 on a phone: these are the app's primary navigation and were 40px,
+// under the 44px a thumb needs. Dense only from sm: up, where there is a mouse.
 const navLink =
-  'inline-flex min-h-10 shrink-0 items-center rounded-[10px] px-3.5 text-sm font-semibold ' +
-  'no-underline transition-colors ' + focusRingOnDark
+  'inline-flex min-h-11 shrink-0 items-center rounded-[10px] px-3.5 text-sm font-semibold ' +
+  'no-underline transition-colors sm:min-h-10 ' + focusRingOnDark
 
 // Order a list of jobs by the chosen key. Undated jobs sort last for date sorts.
 function sortJobs(jobs, sortBy) {
@@ -122,6 +124,7 @@ export default function App() {
   const [toast, setToast] = useState(null)
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('retrofit.sort') || 'start')
   const searchRef = useRef(null)
+  const topbarRef = useRef(null)
 
   const pushToast = useCallback((t) => {
     setToast(t)
@@ -131,12 +134,67 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('retrofit.sort', sortBy) }, [sortBy])
 
+  // Publish the topbar's REAL height so the page can reserve space under it.
+  //
+  // Its height is not a constant: measured here, 143px on the Jobs tab and 99px
+  // on the Dashboard at 375px, 65px at 700px. It wraps to three rows on a
+  // phone, gains a row of actions on Jobs, and moves again when the web fonts
+  // land. Anything that scrolls an element to the top of the page — an anchor
+  // jump, focusing a field that is off screen, scrollIntoView — parked that
+  // element UNDER the sticky bar, which is what the owner saw as "information
+  // is behind the header". styles.css turns this into :root's
+  // scroll-padding-top, so every such scroll stops below the bar at whatever
+  // height it happens to be. A hard-coded number is wrong at some width,
+  // always; that is the whole reason this is measured.
+  const publishTopbarHeight = useCallback(() => {
+    const el = topbarRef.current
+    if (!el) return
+    const value = `${Math.ceil(el.getBoundingClientRect().height)}px`
+    const root = document.documentElement
+    if (root.style.getPropertyValue('--topbar-h') !== value) root.style.setProperty('--topbar-h', value)
+  }, [])
+
+  // After EVERY render, with no dependency list: the bar gains and loses a row
+  // with the section and with the signed-in user's permissions, and that is a
+  // re-render rather than a resize. Writing only on a change keeps it cheap.
+  useLayoutEffect(publishTopbarHeight)
+
+  // The rest of the ways it can change without a re-render.
+  useEffect(() => {
+    const el = topbarRef.current
+    if (!el) return undefined
+    window.addEventListener('resize', publishTopbarHeight)
+    window.addEventListener('orientationchange', publishTopbarHeight)
+    // The precise version of the same thing, and the only one that catches a
+    // row appearing from a child's own state.
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(publishTopbarHeight) : null
+    ro?.observe(el)
+    // Fonts land after first paint and change where the bar wraps.
+    document.fonts?.ready.then(publishTopbarHeight).catch(() => {})
+    return () => {
+      window.removeEventListener('resize', publishTopbarHeight)
+      window.removeEventListener('orientationchange', publishTopbarHeight)
+      ro?.disconnect()
+    }
+  }, [publishTopbarHeight])
+
   // Follow hash changes between the top-level sections.
   useEffect(() => {
     const onHash = () => setSection(sectionFromHash())
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+
+  // A tab tap lands you at the TOP of that tab. Hash-only navigation keeps the
+  // window's scroll offset, so tapping "Dashboard" halfway down a long Jobs
+  // board dropped you halfway down the Dashboard — on a phone that reads as
+  // the page having loaded wrong. Skipped on the very first render so a
+  // deliberate reload-in-place is not fought.
+  const firstSection = useRef(true)
+  useEffect(() => {
+    if (firstSection.current) { firstSection.current = false; return }
+    window.scrollTo(0, 0)
+  }, [section])
 
   // Finance is level 3–4 territory in suite mode (FinanceGate + RLS enforce
   // it); in local mode the tab shows and the per-device passcode protects it.
@@ -460,7 +518,7 @@ export default function App() {
       {/* print:hidden so an invoice prints as just the sheet. This used to be a
           `.topbar` rule in business.css; the class went when the header moved
           onto utilities, and the rule silently stopped matching anything. */}
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-navy text-white print:hidden">
+      <header ref={topbarRef} className="sticky top-0 z-20 border-b border-white/10 bg-navy text-white print:hidden">
         {/* The top inset is only non-zero on an iPhone added to the home
             screen, where the status bar sits over the page. Underscores are
             the separator Tailwind turns back into spaces — calc needs them
@@ -544,12 +602,19 @@ export default function App() {
       {section === 'jobs' && (
       <>
       {/* container-site is the Dashboard's and Finance's own gutter, so all
-          three sections now line up at every width. pb clears the floating
-          bulk-actions bar. */}
-      <main className="container-site flex flex-col gap-5 py-5 pb-24">
+          three sections now line up at every width. The bottom padding clears
+          the floating bulk-actions bar, whose height BulkActionsBar publishes
+          as --bulk-bar-h: it is 268px tall on a phone (eight controls, three
+          rows) against the 96px that was reserved, so the last two job cards
+          sat behind it with no scroll position that could reveal them. */}
+      <main className="container-site flex flex-col gap-5 py-5 pb-[calc(2rem+env(safe-area-inset-bottom)+var(--bulk-bar-h,0px))]">
         {error && <Banner tone="danger">Something went wrong: {error}</Banner>}
 
-        {jobs.length > 0 && (
+        {/* Also while LOADING, not only once jobs have arrived: the bar is 66px
+            tall, so gating it on the async read returning shoved the whole
+            board down the moment the jobs appeared. Reserving the row up front
+            is why the board no longer jumps under your thumb on a phone. */}
+        {(loading || jobs.length > 0) && (
           <StatusBar jobs={activeJobs} activeStatus={statusFilter} onSelect={setStatusFilter} />
         )}
 
@@ -635,13 +700,20 @@ export default function App() {
                 >
                   {SORTS.map((s) => <option key={s.value} value={s.value}>Sort: {s.label}</option>)}
                 </Select>
-                {view === 'list' && sorted.length > 0 && (
+                {/* Shown while LOADING too, disabled. It wraps onto a row of
+                    its own at 375px, so appearing only once the jobs arrived
+                    shunted the whole board down by that row's height. */}
+                {view === 'list' && (loading || sorted.length > 0) && (
                   <label
                     title="Select all shown"
-                    className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-line-strong bg-paper-card px-3 text-sm text-ink-faint hover:text-ink"
+                    className={cx(
+                      'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-line-strong bg-paper-card px-3 text-sm text-ink-faint',
+                      loading ? 'opacity-60' : 'cursor-pointer hover:text-ink',
+                    )}
                   >
                     <input
                       type="checkbox"
+                      disabled={loading}
                       className="h-4 w-4 cursor-pointer accent-ember"
                       checked={allVisibleSelected}
                       // A part-selection shows a dash rather than an empty box,
@@ -679,7 +751,10 @@ export default function App() {
             )}
 
             {loading ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3.5" aria-hidden>
+              // Exactly JobList's track. A bare minmax(300px,1fr) has a 300px
+              // floor, so at 320px the skeleton was 20px wider than the cards
+              // that replaced it and the board visibly snapped narrower.
+              <div className="grid content-start gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))]" aria-hidden>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="h-[118px] animate-pulse rounded-xl bg-sunken" />
                 ))}

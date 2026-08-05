@@ -21,8 +21,11 @@ const base =
   'whitespace-nowrap cursor-pointer select-none transition-colors ' +
   'disabled:cursor-default disabled:opacity-55 disabled:pointer-events-none'
 
+// `sm` is 44px on a phone and only drops to 40px from sm: up. A dense toolbar
+// is a desktop idea; on the device this is demoed on, every button is a thumb
+// target and 40px is a miss.
 const sizes = {
-  sm: 'min-h-10 px-3 text-[13px]',
+  sm: 'min-h-11 px-3 text-[13px] sm:min-h-10',
   md: 'min-h-11 px-4 text-sm',
 }
 
@@ -68,8 +71,11 @@ export const Button = forwardRef(function Button(
 
 // Icon-only button. `label` is required and becomes the accessible name —
 // there is no visible text to fall back on.
+// Same rule as Button's sizes: `sm` is a full 44px target on a phone (the
+// modal close, Finance's settings/lock, an invoice's view/delete were all 36px
+// squares) and only becomes the dense 36px square from sm: up.
 const iconSizes = {
-  sm: 'h-9 w-9',
+  sm: 'h-11 w-11 sm:h-9 sm:w-9',
   md: 'h-11 w-11',
 }
 

@@ -48,7 +48,9 @@ export function SegmentedControl({
             {...(isTabs ? { 'aria-selected': active } : { 'aria-checked': active })}
             onClick={() => onChange?.(opt.value)}
             className={cx(
-              'inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full px-4',
+              // 44px on a phone (this is how you change view on the board),
+              // the denser 40px only from sm: up. Same rule as Button's sizes.
+              'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 sm:min-h-10',
               'text-sm font-medium transition-colors',
               full && 'flex-1',
               active ? 'bg-paper-card text-ink shadow-hairline' : 'text-ink-faint hover:text-ink',

@@ -95,7 +95,14 @@ export default function Dashboard({ jobs = [], onOpenJob }) {
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      {/* grid-cols-1 is load-bearing, not tidiness. With no base track this
+          grid fell back to an implicit `auto` column, whose floor is the
+          content's MIN-CONTENT width — and a long job address inside a
+          `flex-1 truncate` still contributes its unbroken width up the chain.
+          The column measured 449px inside a 335px box and pushed the whole
+          Finance tab into a horizontal scroll on a phone. minmax(0,1fr) rather
+          than 1fr for the same reason on desktop. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* The same calendar as the Dashboard and Jobs tabs, with the three
             actions the old Finance day modal offered kept intact. Finance is
             the one place a Finance entry is editable, so it is the only host

@@ -28,7 +28,12 @@ export const inputClass = cx(
 // than one control has undefined behaviour when clicked.
 export function Field({ label, hint, error, as: Tag = 'label', className, children, ...rest }) {
   return (
-    <Tag {...rest} className={cx('grid min-w-0 gap-1.5', className)}>
+    // grid-cols-[minmax(0,1fr)], not a bare `grid`: the implicit track is
+    // `auto`, whose floor is min-content, so a Field inside a narrow column
+    // was sized by its widest child rather than by the column. In the Add-a-job
+    // sheet's two-up Day/Time row that made a 171px date input overhang a 162px
+    // cell. min-w-0 alone does not fix it — the track is the thing that grows.
+    <Tag {...rest} className={cx('grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5', className)}>
       {label && (
         <span className="text-xs font-bold uppercase tracking-wide text-ink-faint">{label}</span>
       )}

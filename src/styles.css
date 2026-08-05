@@ -25,6 +25,15 @@
    <body>, so everything past the fold went navy. */
 :root { color-scheme: light; }
 
+/* Nothing the browser scrolls to may land under the sticky topbar.
+   App.jsx measures the bar into --topbar-h on every resize, wrap and font
+   load, because its height genuinely varies: three rows at 375px, one at
+   1280px, plus an extra row of actions on the Jobs tab. This is what stops an
+   anchor jump, a focus scroll or scrollIntoView() parking a field inside the
+   navy band — the "information is behind the header" report. The fallback is
+   the bar's own min-height, for the frame before React measures it. */
+:root { scroll-padding-top: calc(var(--topbar-h, 3.5rem) + 0.75rem); }
+
 /* Belt and braces for that same bug: <body> is exactly viewport-tall, so
    anything past the fold — and iOS rubber-band overscroll — shows <html>. It
    must carry the page colour, never a framework default. */

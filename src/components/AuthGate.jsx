@@ -21,7 +21,8 @@ export default function AuthGate({ children }) {
   }, [awaitingOrg, auth.refresh])
 
   if (!auth.configured) return children
-  if (auth.loading) return <div className="grid min-h-[60vh] place-items-center text-ink-faint">Loading…</div>
+  // dvh, not vh — iOS resolves vh against the large (toolbar-hidden) viewport.
+  if (auth.loading) return <div className="grid min-h-[60dvh] place-items-center text-ink-faint">Loading…</div>
 
   if (!auth.session) {
     return (

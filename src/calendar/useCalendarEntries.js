@@ -38,8 +38,20 @@ export function useCalendarEntries(jobs) {
   // no extra state to keep in sync.
   const showMoney = configured ? isAdmin : isUnlocked()
 
+  // Who may change a booking FROM THE CALENDAR. Below Organisation Admin the
+  // rows are all still there and still open — read-only, saying why — because
+  // a worker needs to see their day even where they cannot rearrange it.
+  // (`isAdmin` IS accessLevel >= 3; reuse it so the threshold lives in one
+  // place.) Local mode has no accounts at all — one person, one browser —
+  // so there is nothing to gate.
+  //
+  // UI CONVENIENCE ONLY. Row Level Security on `jobs` and `biz_data` is the
+  // real gate; anyone can call the store directly from a console. Never
+  // describe this flag as security.
+  const canEdit = !configured || isAdmin
+
   const bizJobs = businessIncluded ? hub.jobs : EMPTY
   const { entries, byDate } = useMemo(() => mergeEntries({ jobs, bizJobs }), [jobs, bizJobs])
 
-  return { entries, byDate, businessIncluded, showMoney }
+  return { entries, byDate, showMoney, canEdit }
 }

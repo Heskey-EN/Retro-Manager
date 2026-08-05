@@ -32,7 +32,11 @@ export default function TagInput({ value = [], onChange, placeholder = 'Add tagâ
             type="button"
             onClick={() => removeAt(i)}
             aria-label={`Remove ${t}`}
-            className="-mr-1 ml-0.5 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full hover:bg-ember/20"
+            // 32px on a phone rather than 24. It cannot be grown with a
+            // pseudo-element the way an isolated icon button can: Chip wraps
+            // its children in a `truncate` span, which is overflow:hidden and
+            // would clip any hit area reaching outside the pill.
+            className="-mr-1 ml-0.5 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full hover:bg-ember/20 sm:h-6 sm:w-6"
           >
             <X size={12} />
           </button>

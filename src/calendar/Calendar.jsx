@@ -18,10 +18,14 @@ import Timeline from './Timeline.jsx'
 //   jobs             real jobs. The host filters BEFORE passing.
 //   views            ['month'] (default) | ['month','timeline']
 //   onOpenJob        (job) => void — the ORIGINAL job object
-//   onOpenEntry      (entry) => void — a Finance entry was tapped. Omitted ⇒
-//                    the day sheet shows a read-only detail instead.
+//   onOpenEntry      (entry) => void — an entry Finance holds was tapped. Only
+//                    the Finance tab has an editor for one; omit it and the
+//                    row expands to its read-only detail instead.
 //   renderDayActions (iso) => ReactNode — buttons in the day sheet's footer
 //   filterNote       string — says the view is filtered rather than empty
+//
+// Adding is NOT gated: booking work is the job of every tier. Changing an
+// existing booking is (see useCalendarEntries → canEdit).
 
 const WEEKDAYS = [
   ['M', 'Mon'], ['T', 'Tue'], ['W', 'Wed'], ['T', 'Thu'], ['F', 'Fri'], ['S', 'Sat'], ['S', 'Sun'],
@@ -53,7 +57,7 @@ export default function Calendar({
   renderDayActions,
   filterNote,
 }) {
-  const { entries, byDate, businessIncluded, showMoney } = useCalendarEntries(jobs)
+  const { entries, byDate, showMoney, canEdit } = useCalendarEntries(jobs)
   const today = todayISO()
 
   const [cursor, setCursor] = useState(() => {
@@ -86,9 +90,15 @@ export default function Calendar({
   // point — a silently missing job is what this rebuild is fixing.
   const undated = jobs.filter((j) => !j.start_date).length
 
-  // The timeline needs somewhere to send a tapped Finance entry when the host
-  // has no editor for one: its own day, in the sheet, read-only.
-  const openEntry = onOpenEntry || ((e) => setOpenDay(e.start))
+  // One place decides what tapping a bar does, so the timeline and the day
+  // sheet can never disagree. When there is no editor to send it to — this
+  // account may not change bookings, or this screen has no editor for that
+  // record — it opens the entry's own day, where the row expands read-only.
+  const openFromTimeline = (e) => {
+    const editor = e.kind === 'job' ? onOpenJob : onOpenEntry
+    if (canEdit && editor) (e.kind === 'job' ? onOpenJob(e.source) : onOpenEntry(e))
+    else setOpenDay(e.start)
+  }
 
   return (
     <>
@@ -139,7 +149,7 @@ export default function Calendar({
         </div>
 
         {mode === 'timeline' ? (
-          <Timeline entries={entries} onOpenJob={onOpenJob} onOpenEntry={openEntry} />
+          <Timeline entries={entries} onOpen={openFromTimeline} />
         ) : (
           // The mobile gutter and gap are this tight for one measured reason: at
           // 375px the card's inner width is 333px, so px-2/gap-1 gave 41.9px
@@ -172,6 +182,9 @@ export default function Calendar({
           </div>
         )}
 
+        {/* The whole legend: four statuses, and nothing about where a booking
+            is stored. It used to carry a fifth swatch labelled "Finance
+            entries", which answered a question no one on site is asking. */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line px-3 py-2.5 sm:px-4">
           {STATUSES.map((s) => (
             <span key={s.value} className="inline-flex items-center gap-1.5 text-[11px] text-ink-faint">
@@ -179,19 +192,6 @@ export default function Calendar({
               {s.label}
             </span>
           ))}
-          {businessIncluded && (
-            <span
-              className="inline-flex items-center gap-1.5 text-[11px] text-ink-faint"
-              title="EPCs and company work added in Finance. Their colour is the entry type — shown when you open the day."
-            >
-              <span
-                className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-                style={{ boxShadow: 'inset 0 0 0 2px var(--color-ink-faint)' }}
-                aria-hidden
-              />
-              Finance entries
-            </span>
-          )}
         </div>
       </Card>
 
@@ -200,10 +200,19 @@ export default function Calendar({
           iso={openDay}
           entries={byDate[openDay] || []}
           showMoney={showMoney}
-          onOpenJob={(job) => {
-            setOpenDay(null)
-            onOpenJob?.(job)
-          }}
+          canEdit={canEdit}
+          // Undefined when the host has no editor, never a wrapper around
+          // nothing: the row reads "is there somewhere to send this?" off the
+          // prop, and a defined no-op would make it a dead button instead of
+          // an expanding read-only one.
+          onOpenJob={
+            onOpenJob
+              ? (job) => {
+                  setOpenDay(null)
+                  onOpenJob(job)
+                }
+              : undefined
+          }
           onOpenEntry={
             onOpenEntry
               ? (e) => {
@@ -249,18 +258,15 @@ function DayCell({ iso, day, inMonth, isToday, entries, onOpen }) {
         {day}
       </span>
 
-      {/* Phone: colour dots. */}
+      {/* Phone: colour dots. One shape for every booking — the square outline
+          that used to mean "this one lives in Finance" is gone. */}
       {entries.length > 0 && (
         <span className="absolute inset-x-0 bottom-1 flex justify-center gap-0.5 sm:hidden">
           {dots.map((e) => (
             <span
               key={e.id}
-              className={cx('h-1.5 w-1.5', e.kind === 'biz' ? 'rounded-[1px]' : 'rounded-full')}
-              style={{
-                backgroundColor: e.kind === 'biz' ? 'transparent' : e.colour,
-                boxShadow: e.kind === 'biz' ? `inset 0 0 0 1.5px ${e.colour}` : undefined,
-                opacity: e.cancelled ? 0.4 : 1,
-              }}
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: e.colour, opacity: e.cancelled ? 0.4 : 1 }}
               aria-hidden
             />
           ))}
@@ -275,16 +281,7 @@ function DayCell({ iso, day, inMonth, isToday, entries, onOpen }) {
             <span
               key={e.id}
               className={cx('truncate rounded px-1 py-px text-[10px] font-semibold leading-tight', e.cancelled && 'line-through')}
-              style={
-                e.kind === 'biz'
-                  ? {
-                      backgroundColor: `color-mix(in srgb, ${e.colour} 16%, var(--color-paper-card))`,
-                      color: `color-mix(in srgb, ${e.colour} 72%, var(--color-ink))`,
-                      boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${e.colour} 45%, transparent)`,
-                      opacity: e.cancelled ? 0.6 : 1,
-                    }
-                  : { backgroundColor: e.colour, color: inkOn(e.colour), opacity: e.cancelled ? 0.55 : 1 }
-              }
+              style={{ backgroundColor: e.colour, color: inkOn(e.colour), opacity: e.cancelled ? 0.55 : 1 }}
             >
               {e.time ? `${e.time} ` : ''}
               {e.title}

@@ -29,7 +29,7 @@ export default function UpNext({
   jobs = [], title = 'Next up', withinDays, limit = DEFAULT_LIMIT, bookedOnly = false,
   groupByDay = false, onOpenJob, onOpenEntry, children,
 }) {
-  const { entries, showMoney } = useCalendarEntries(jobs)
+  const { entries, showMoney, canEdit } = useCalendarEntries(jobs)
   const today = todayISO()
 
   // addDays, never toISOString(): the latter converts local midnight to UTC, so
@@ -47,14 +47,15 @@ export default function UpNext({
       // A multi-day block that STARTS after the window still overlaps it if it
       // is already running, so the window is tested against the start.
       .filter((e) => !until || e.start <= until)
-      // Work still to do. A job already marked Done or Paid is finished, and
-      // listing it under what's coming up is noise on the one screen meant to
-      // tell you where to go next. Business entries have no status and always
-      // count as work.
+      // Work still to do. A booking already marked Done or Paid is finished,
+      // and listing it under what's coming up is noise on the one screen meant
+      // to tell you where to go next. Entries Finance holds now carry the same
+      // three states as a job (see entries.js), so this no longer treats a
+      // settled EPC as outstanding just because it is stored elsewhere.
       .filter((e) => !bookedOnly || !e.status || e.status === 'Booked')
       .sort((a, b) => a.start.localeCompare(b.start) || (a.time || '99').localeCompare(b.time || '99'))
     return limit ? list.slice(0, limit) : list
-  }, [entries, today, until, limit])
+  }, [entries, today, until, limit, bookedOnly])
 
   // One bucket per day that actually has work. A run spanning several days
   // appears under each of them — it IS on your Wednesday, even though it
@@ -74,6 +75,12 @@ export default function UpNext({
       .map(([date, items]) => ({
         date,
         items: items.sort((a, b) => (a.time || '99').localeCompare(b.time || '99')),
+        // Properties, not bookings. One entry can carry four addresses, and the
+        // rows below now list all four — a "5 jobs" heading over eight lines
+        // would be contradicted by the thing directly underneath it. Counted
+        // off the same list the rows render and the export sends, so the three
+        // can never disagree.
+        count: items.reduce((n, e) => n + (e.properties?.length || 1), 0),
       }))
   }, [upcoming, groupByDay, today, until])
 
@@ -90,7 +97,7 @@ export default function UpNext({
         // understand it, and it keeps a whole week glanceable on a phone
         // instead of a scroll of forty rows.
         <div className="divide-y divide-line">
-          {byDay.map(({ date, items }) => (
+          {byDay.map(({ date, items, count }) => (
             <details key={date} open={date === today} className="group">
               <summary
                 className={cx(
@@ -107,7 +114,7 @@ export default function UpNext({
                   {date === today ? 'Today' : dayLabel(date)}
                 </span>
                 <span className="shrink-0 text-xs text-ink-faint">
-                  {items.length} job{items.length === 1 ? '' : 's'}
+                  {count} job{count === 1 ? '' : 's'}
                 </span>
               </summary>
               <ul className="divide-y divide-line px-2 pb-1">
@@ -116,6 +123,7 @@ export default function UpNext({
                     key={e.id}
                     entry={e}
                     showMoney={showMoney}
+                    canEdit={canEdit}
                     onOpenJob={onOpenJob}
                     onOpenEntry={onOpenEntry}
                   />
@@ -131,6 +139,7 @@ export default function UpNext({
               key={e.id}
               entry={e}
               showMoney={showMoney}
+              canEdit={canEdit}
               showDate
               onOpenJob={onOpenJob}
               onOpenEntry={onOpenEntry}

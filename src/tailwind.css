@@ -96,6 +96,13 @@
   --animate-fade-up: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade-in: fade-in 0.8s ease-out both;
 
+  /* NOTE: fade-up runs with fill-mode: both, so whatever it animates is
+     locked in for the element's whole life. A transform — even the identity
+     one, and even written as `transform: none`, which Chrome still serialises
+     as a matrix — makes that element the containing block for every
+     position:fixed descendant. Anything that both animates in and can host a
+     fixed child (a full-screen page, a scrolling overlay) wants fade-in
+     instead; see src/components/FullScreenPage.jsx. */
   @keyframes fade-up {
     0% { opacity: 0; transform: translateY(16px); }
     100% { opacity: 1; transform: translateY(0); }

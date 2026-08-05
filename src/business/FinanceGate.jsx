@@ -35,7 +35,9 @@ export function lockHub() {
 
 function GateShell({ children }) {
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4 py-10">
+    // dvh: iOS resolves vh against the large viewport, so 60vh is taller than
+    // 60% of what you can actually see while the address bar is up.
+    <div className="flex min-h-[60dvh] items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm animate-fade-up rounded-2xl border border-line bg-paper-card p-8 shadow-lift">
         <div className="mb-6 flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy text-accent-green">

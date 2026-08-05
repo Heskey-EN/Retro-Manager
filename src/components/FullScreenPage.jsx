@@ -14,7 +14,23 @@ import { Button, Card, IconButton, Z, cx } from '../ui'
 
 export default function FullScreenPage({ backLabel = 'Back', onClose, actions, children }) {
   return (
-    <div className={cx('fixed inset-0 overflow-y-auto bg-paper motion-safe:animate-fade-up', Z.overlay)}>
+    <div
+      className={cx(
+        'fixed inset-0 overflow-y-auto bg-paper',
+        // Its own scroll container, so it needs its own scroll-padding — the
+        // :root rule in styles.css only governs the page behind it. One header
+        // row here, so a constant is honest.
+        'scroll-pt-[calc(4.5rem+env(safe-area-inset-top))]',
+        // fade-IN, not fade-up — opacity only, nothing that computes to a
+        // transform. fade-up runs with fill-mode: both, so its final
+        // translateY(0) sticks as an identity matrix for good, and a
+        // transformed ancestor is the containing block for every
+        // position: fixed inside it: the first modal opened from a job would
+        // then position against this scrolled overlay rather than the viewport.
+        'motion-safe:animate-fade-in',
+        Z.overlay,
+      )}
+    >
       <header
         className={cx(
           'sticky top-0 z-[2] flex items-center justify-between gap-2 border-b border-line px-3 pb-2 sm:px-6',
@@ -22,7 +38,11 @@ export default function FullScreenPage({ backLabel = 'Back', onClose, actions, c
           // properties, so which one lands is decided by their order in the
           // generated stylesheet rather than by the order written here.
           'pt-[calc(0.5rem+env(safe-area-inset-top))]',
-          'bg-paper-card/85 backdrop-blur-md backdrop-saturate-150',
+          // OPAQUE. It was 85% + a backdrop blur, which is frosted glass where
+          // backdrop-filter works and plain ghosted text where iOS drops it —
+          // the page's own words showing through the header is exactly the
+          // "information is behind the header" complaint.
+          'bg-paper-card shadow-hairline',
         )}
       >
         <Button tone="ghost" onClick={onClose}>

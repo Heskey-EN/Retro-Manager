@@ -10,7 +10,9 @@ import { EntryRow } from './EntryRow.jsx'
 // It opens on EMPTY days too, which the old Finance grid did and the Dashboard
 // one did not. Without that, "Add a job on this day" is unreachable on exactly
 // the days you most want it.
-export default function DaySheet({ iso, entries = [], showMoney, onOpenJob, onOpenEntry, onClose, actions }) {
+export default function DaySheet({
+  iso, entries = [], showMoney, canEdit = true, onOpenJob, onOpenEntry, onClose, actions,
+}) {
   // A run past the display cap collapses onto its start day (see entries.js) —
   // say where it actually finishes rather than silently losing the span.
   const longRuns = entries.filter((e) => e.start === iso && e.end > e.start && e.days.length === 1)
@@ -32,6 +34,7 @@ export default function DaySheet({ iso, entries = [], showMoney, onOpenJob, onOp
               entry={e}
               iso={iso}
               showMoney={showMoney}
+              canEdit={canEdit}
               onOpenJob={onOpenJob}
               onOpenEntry={onOpenEntry}
             />

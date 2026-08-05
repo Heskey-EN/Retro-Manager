@@ -7,9 +7,14 @@ import { inkOn } from './entries.js'
 // The Gantt view: the only one that shows a multi-day run AS a run.
 //
 // Ported from components/CalendarTimeline.jsx when the calendars merged — same
-// geometry, same scroll behaviour, now driven by calendar entries so Finance's
-// company blocks appear as bars too. It lives inside its own overflow-x-auto,
-// so however wide the track gets it can never push the page sideways.
+// geometry, same scroll behaviour, now driven by calendar entries so every
+// booking appears as a bar. It lives inside its own overflow-x-auto, so however
+// wide the track gets it can never push the page sideways.
+//
+// `onOpen(entry)` is one callback, not the two it used to take: routing a tap
+// (to an editor, or to that day read-only) is the Calendar's decision, and
+// splitting it here is what made the bars look different depending on which
+// store held them.
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DAY_WIDTH = 36
@@ -20,7 +25,7 @@ const LABEL_W_SM = 140
 
 const daysBetween = (a, b) => Math.round((b - a) / DAY_MS)
 
-export default function Timeline({ entries, onOpenJob, onOpenEntry }) {
+export default function Timeline({ entries, onOpen }) {
   const model = useMemo(() => {
     const dated = entries
       .map((e) => ({ e, start: fromISO(e.start), end: fromISO(e.end) }))
@@ -99,7 +104,13 @@ export default function Timeline({ entries, onOpenJob, onOpenEntry }) {
         </Button>
       </div>
 
-      <div className="overflow-x-auto" ref={scrollRef}>
+      {/* The date header is `sticky top-0` INSIDE this box, so it can only pin
+          if this box is what scrolls vertically. It wasn't — the element was
+          exactly as tall as its content, so the header simply scrolled off
+          with the page and a bar three months out belonged to no date at all.
+          The cap only engages once there are more rows than fit; overscroll-
+          contain stops a flick at the end of the list dragging the page. */}
+      <div className="max-h-[70dvh] overflow-auto overscroll-contain" ref={scrollRef}>
         <div className="relative" style={{ width: trackWidth + labelW }}>
           <div className="sticky top-0 z-[5] flex border-y border-line bg-paper-card">
             <div className={cx(labelCls, 'font-display text-[13px] font-semibold')} style={{ width: labelW }}>
@@ -157,7 +168,6 @@ export default function Timeline({ entries, onOpenJob, onOpenEntry }) {
             {model.dated.map(({ e, start, end }) => {
               const offset = daysBetween(model.min, start)
               const span = Math.max(1, daysBetween(start, end) + 1)
-              const biz = e.kind === 'biz'
               return (
                 <div key={e.id} className="group relative z-[2] flex h-11 border-b border-line hover:bg-sunken">
                   {/* The name stays put while the dates scroll under it —
@@ -179,14 +189,14 @@ export default function Timeline({ entries, onOpenJob, onOpenEntry }) {
                       style={{
                         left: offset * DAY_WIDTH,
                         width: span * DAY_WIDTH - 5,
-                        // Jobs are solid, Finance entries outlined — Done and
-                        // Company Work are the same amber, so fill alone would
-                        // make them indistinguishable.
-                        backgroundColor: biz ? `color-mix(in srgb, ${e.colour} 16%, #FBFCFD)` : e.colour,
-                        color: biz ? `color-mix(in srgb, ${e.colour} 72%, #16202B)` : inkOn(e.colour),
-                        boxShadow: biz ? `inset 0 0 0 1.5px ${e.colour}` : undefined,
+                        // Every bar solid, in its status colour. Outlined bars
+                        // used to mean "Finance holds this one" — a badge the
+                        // owner asked us to drop, and one only needed because
+                        // those bars were coloured by work type instead.
+                        backgroundColor: e.colour,
+                        color: inkOn(e.colour),
                       }}
-                      onClick={() => (biz ? onOpenEntry?.(e) : onOpenJob?.(e.source))}
+                      onClick={() => onOpen?.(e)}
                       title={`${e.title} — ${e.statusLabel}`}
                     >
                       <span className={cx('truncate font-medium', e.cancelled && 'line-through')}>{e.title}</span>
