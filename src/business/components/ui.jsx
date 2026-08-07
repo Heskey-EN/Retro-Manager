@@ -22,9 +22,11 @@ export { Field } from '../../ui'
 
 // `wide` was max-w-2xl and the default max-w-md. The kit's sizes are the
 // nearest equivalents, and bring the phone bottom-sheet behaviour with them.
-export function Modal({ title, onClose, children, wide = false }) {
+// `footer` passes straight through: it is the kit's pinned action row, the
+// only place a sheet's primary button is guaranteed on screen on a phone.
+export function Modal({ title, subtitle, onClose, children, footer, wide = false }) {
   return (
-    <KitModal title={title} onClose={onClose} size={wide ? 'lg' : 'sm'}>
+    <KitModal title={title} subtitle={subtitle} onClose={onClose} size={wide ? 'lg' : 'sm'} footer={footer}>
       {children}
     </KitModal>
   )

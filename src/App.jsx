@@ -165,16 +165,38 @@ export default function App() {
     if (!el) return undefined
     window.addEventListener('resize', publishTopbarHeight)
     window.addEventListener('orientationchange', publishTopbarHeight)
+    // iOS resizes the visual viewport (keyboard, URL-bar collapse) without
+    // always firing a window resize.
+    window.visualViewport?.addEventListener('resize', publishTopbarHeight)
+    window.addEventListener('pageshow', publishTopbarHeight) // back/forward cache restore
     // The precise version of the same thing, and the only one that catches a
     // row appearing from a child's own state.
     const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(publishTopbarHeight) : null
     ro?.observe(el)
     // Fonts land after first paint and change where the bar wraps.
     document.fonts?.ready.then(publishTopbarHeight).catch(() => {})
+    // Belt and braces for the load window. The bar has been caught holding a
+    // stale height right after a load — 154px recorded, 103px real — meaning
+    // an early-load reflow (font swap, stylesheet landing) slipped past every
+    // listener above. Too big only wastes scroll padding, but the same
+    // staleness the other way hides content under the bar, which is the exact
+    // bug all of this exists to prevent. So for the first few seconds,
+    // re-measure every frame; one getBoundingClientRect a frame is nothing,
+    // and it stops at settle.
+    let raf = 0
+    const started = performance.now()
+    const watchdog = () => {
+      publishTopbarHeight()
+      if (performance.now() - started < 6000) raf = requestAnimationFrame(watchdog)
+    }
+    raf = requestAnimationFrame(watchdog)
     return () => {
       window.removeEventListener('resize', publishTopbarHeight)
       window.removeEventListener('orientationchange', publishTopbarHeight)
+      window.visualViewport?.removeEventListener('resize', publishTopbarHeight)
+      window.removeEventListener('pageshow', publishTopbarHeight)
       ro?.disconnect()
+      cancelAnimationFrame(raf)
     }
   }, [publishTopbarHeight])
 
@@ -366,17 +388,10 @@ export default function App() {
 
   const bulkSetStatus = useCallback(async (status) => {
     const ids = [...selected]
-    // Bulk moves skip the per-job documents gate, so warn when any job would
-    // jump *forward* in the pipeline (the case the single-job gate protects).
-    const advancing = ids
-      .map((id) => jobs.find((j) => j.id === id))
-      .filter((j) => j && statusIndex(status) > statusIndex(j.status)).length
-    if (advancing > 0) {
-      const ok = window.confirm(
-        `${advancing} of ${ids.length} selected job${ids.length === 1 ? '' : 's'} will advance to “${statusLabel(status)}” without the per-stage documents check. Continue?`,
-      )
-      if (!ok) return
-    }
+    // No confirm here: the single-job path applies a status straight away
+    // (the old pipeline's documents gate is gone), and a bulk warning about
+    // "advancing without the documents check" was guarding a step that no
+    // longer exists — it just blocked the change behind a confusing dialog.
     const results = await Promise.all(ids.map((id) => updateJob(id, { status })))
     const failed = results.filter((ok) => ok === false).length
     const moved = ids.length - failed

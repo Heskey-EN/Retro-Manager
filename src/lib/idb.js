@@ -62,6 +62,27 @@ export async function idbGetAllByIndex(store, index, value) {
   return reqToPromise(db.transaction(store).objectStore(store).index(index).getAll(value))
 }
 
+// Atomic read-modify-write. get-then-put as two separate calls leaves a gap
+// where a concurrent update's put can land between them — the second writer
+// then resurrects the row it read before the first committed, silently undoing
+// that edit (a status change lost to a costing write fired straight after).
+// Requests inside one readwrite transaction can't interleave with other
+// transactions on the store, which closes the gap outright.
+export async function idbUpdate(store, key, mutate) {
+  const db = await openDB()
+  const t = db.transaction(store, 'readwrite')
+  const os = t.objectStore(store)
+  let result = null
+  const req = os.get(key)
+  req.onsuccess = () => {
+    if (req.result === undefined) return // no such row; the tx just completes
+    result = mutate(req.result)
+    os.put(result)
+  }
+  await txDone(t)
+  return result
+}
+
 export async function idbPut(store, value) {
   const db = await openDB()
   const t = db.transaction(store, 'readwrite')

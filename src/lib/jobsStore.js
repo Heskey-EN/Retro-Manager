@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient'
 import { getActiveOrgId } from './orgContext'
-import { idbGetAll, idbGet, idbPut, idbBulkPut, idbDelete, idbClear } from './idb'
+import { idbGetAll, idbBulkPut, idbDelete, idbClear, idbUpdate } from './idb'
 
 // A small uniform interface over two interchangeable backends:
 //   - "supabase": a shared Postgres table with real-time Postgres changes,
@@ -163,10 +163,16 @@ function createLocalStore() {
     },
 
     async updateJob(id, patch) {
-      const existing = await idbGet('jobs', id)
-      if (!existing) return null
-      const updated = { ...existing, ...patch, updated_at: new Date().toISOString() }
-      await idbPut('jobs', updated)
+      // One transaction, not get-then-put: two quick edits to the same job
+      // (status tap, then a costing keystroke) used to interleave, and the
+      // later write resurrected the row it had read before the earlier one
+      // committed — the status change just vanished.
+      const updated = await idbUpdate('jobs', id, (existing) => ({
+        ...existing,
+        ...patch,
+        updated_at: new Date().toISOString(),
+      }))
+      if (!updated) return null
       announce({ eventType: 'UPDATE', new: updated })
       return updated
     },

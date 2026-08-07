@@ -173,7 +173,7 @@ export default function ImportReview({ parsed, existingJobs, onCancel, onApply }
               <span className="text-[11.5px] text-ink-faint">
                 {overwrite
                   ? `Replacing ${conflictCount} value${conflictCount === 1 ? '' : 's'} already in the system with the file's.`
-                  : `${conflictCount} value${conflictCount === 1 ? '' : 's'} differ. Left off, yours are kept.`}
+                  : `${conflictCount} value${conflictCount === 1 ? ' differs' : 's differ'}. Left off, yours are kept.`}
               </span>
             </span>
           </label>

@@ -103,7 +103,7 @@ function FeeRows({ fees, setFees }) {
 
 /* ── One job ─────────────────────────────────────────────────────────── */
 
-function SingleJob({ onCreate, onDone, jobs, initialDate }) {
+function SingleJob({ onCreate, onDone, onClose, switcher, jobs, initialDate }) {
   const [form, setForm] = useState({
     address: '', postcode: '', customer: '', date: initialDate || todayISO(), time: '', price: '', notes: '',
   })
@@ -134,7 +134,27 @@ function SingleJob({ onCreate, onDone, jobs, initialDate }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <Modal
+      title="Add a job"
+      onClose={onClose}
+      wide
+      // The submit lives in the sheet's pinned footer, not at the end of the
+      // form: the form is taller than a phone screen, and the fastest booking
+      // (postcode → Add) must not depend on discovering the sheet scrolls.
+      // `form=` submits it from outside the <form> element.
+      footer={
+        <div className="w-full">
+          <Button type="submit" form="quick-add-one" tone="primary" disabled={busy} className="w-full">
+            {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add job
+          </Button>
+          <p className="mt-1.5 text-center text-xs text-ink-mute">
+            The price and fees go straight into Finance.
+          </p>
+        </div>
+      }
+    >
+      {switcher}
+      <form id="quick-add-one" onSubmit={submit} className="space-y-3">
       <Field label="Postcode">
         <input
           className={`${input} uppercase`}
@@ -186,13 +206,8 @@ function SingleJob({ onCreate, onDone, jobs, initialDate }) {
       </Field>
 
       {error && <p className="text-sm font-semibold text-danger">{error}</p>}
-      <Button type="submit" tone="primary" disabled={busy} className="w-full">
-        {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add job
-      </Button>
-      <p className="text-center text-xs text-ink-mute">
-        The price and fees go straight into Finance.
-      </p>
-    </form>
+      </form>
+    </Modal>
   )
 }
 
@@ -236,7 +251,7 @@ function MessageBlock({ stop, dateIso }) {
   )
 }
 
-function MultiJob({ onCreate, onDone, initialDate }) {
+function MultiJob({ onCreate, onDone, onClose, switcher, initialDate }) {
   const [rows, setRows] = useState([
     { postcode: '', address: '', customer: '' },
     { postcode: '', address: '', customer: '' },
@@ -295,7 +310,28 @@ function MultiJob({ onCreate, onDone, initialDate }) {
   }
 
   return (
-    <div className="space-y-3">
+    <Modal
+      title="Add a job"
+      onClose={onClose}
+      wide
+      // Same rule as the single form: the one action that moves this flow
+      // forward stays pinned on screen, whatever the list above has scrolled to.
+      footer={
+        !plan ? (
+          <Button tone="primary" className="w-full" onClick={doPlan} disabled={planning || filled.length < 2}>
+            {planning ? <Loader2 size={18} className="animate-spin" /> : <Route size={18} />}
+            {planning ? 'Planning the route…' : `Plan the route (${filled.length})`}
+          </Button>
+        ) : (
+          <Button tone="primary" className="w-full" onClick={addAll} disabled={busy}>
+            {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+            Add all {plan.schedule.length} jobs
+          </Button>
+        )
+      }
+    >
+      {switcher}
+      <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <Field label="Day">
           <input type="date" className={input} value={date} onChange={(e) => setDate(e.target.value)} />
@@ -359,12 +395,7 @@ function MultiJob({ onCreate, onDone, initialDate }) {
 
       {error && <p className="text-sm font-semibold text-danger">{error}</p>}
 
-      {!plan ? (
-        <Button tone="primary" className="w-full" onClick={doPlan} disabled={planning || filled.length < 2}>
-          {planning ? <Loader2 size={18} className="animate-spin" /> : <Route size={18} />}
-          {planning ? 'Planning the route…' : `Plan the route (${filled.length})`}
-        </Button>
-      ) : (
+      {plan && (
         <div className="space-y-3">
           <div className="rounded-lg border border-line bg-white p-3">
             <div className="mb-2 flex items-center justify-between">
@@ -405,14 +436,10 @@ function MultiJob({ onCreate, onDone, initialDate }) {
               ))}
             </ol>
           </div>
-
-          <Button tone="primary" className="w-full" onClick={addAll} disabled={busy}>
-            {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-            Add all {plan.schedule.length} jobs
-          </Button>
         </div>
       )}
-    </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -426,23 +453,26 @@ export default function QuickAddJob({ onCreate, onClose, onAdded, jobs, initialD
     onClose()
   }
 
-  return (
-    <Modal title="Add a job" onClose={onClose} wide>
-      <div className="mb-4 flex gap-1.5">
-        {[['one', 'One job'], ['many', 'Multi job']].map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setMode(key)}
-            className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
-              mode === key ? 'bg-navy text-white' : 'border border-line bg-white text-ink-faint'
-            }`}
-          >{label}</button>
-        ))}
-      </div>
-      {mode === 'one'
-        ? <SingleJob onCreate={onCreate} onDone={done} jobs={jobs} initialDate={initialDate} />
-        : <MultiJob onCreate={onCreate} onDone={done} initialDate={initialDate} />}
-    </Modal>
+  // Each mode renders the Modal itself so the pinned footer can hold ITS
+  // primary action (a form submit for one job, plan-then-add for many). The
+  // switcher is shared body content passed down, keeping one source for it.
+  const switcher = (
+    <div className="mb-4 flex gap-1.5">
+      {[['one', 'One job'], ['many', 'Multi job']].map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => setMode(key)}
+          className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
+            mode === key ? 'bg-navy text-white' : 'border border-line bg-white text-ink-faint'
+          }`}
+        >{label}</button>
+      ))}
+    </div>
   )
+
+  const shared = { onCreate, onDone: done, onClose, switcher }
+  return mode === 'one'
+    ? <SingleJob {...shared} jobs={jobs} initialDate={initialDate} />
+    : <MultiJob {...shared} initialDate={initialDate} />
 }
