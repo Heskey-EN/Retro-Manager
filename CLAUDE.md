@@ -10,44 +10,34 @@ things that will cost you if you don't know them.
 
 ---
 
-## Work in flight (Aug 2026)
+## State of play (Aug 2026)
 
-**Unifying the two design systems onto one kit, and collapsing three calendars
-into one.** The owner's words: *"unify the design systems so it feels like one
-app… there is 3 different calendars in each section that don't sync."*
+**The design-system unification and the one-calendar rebuild are DONE.** The
+shared kit lives in `src/ui/` (Button, Field/Input/Select/Textarea, Modal, Card,
+Chip, Toast, Banner, EmptyState, SegmentedControl, Typography) — everything new
+must be built on it. `src/calendar/` is the one calendar (Calendar, UpNext,
+EntryRow, DaySheet, Timeline, entries.js, EpcExport); all three sections render
+it from the same merged entry list.
 
-- `src/ui/` — the shared kit (Button, Field/Input/Select/Textarea, Modal, Card,
-  Chip, Toast, Banner, EmptyState, SegmentedControl, Typography). **Committed
-  and working.** Everything new must be built on it.
-- `src/components/StatusBar.jsx` is migrated onto the kit as the worked example
-  — copy its pattern.
-- **Still to do:** the rest of `src/components/**` (and the Jobs board markup in
-  `src/App.jsx`) moving off `styles.css`, then one calendar replacing
-  `src/dashboard/UpcomingJobs.jsx`, `src/components/CalendarTimeline.jsx` and
-  the month grid inside `src/business/pages/Dashboard.jsx`.
+**Safety net:** `git tag pre-redesign` marks the last state before the rebuild.
 
-A multi-agent workflow was driving this and has been interrupted twice (session
-limit, then the process exiting). To resume it:
+### How the one calendar stays honest
 
-```
-Workflow({ scriptPath: "<session>/workflows/scripts/unify-design-and-calendars-wf_3a8c8b27-c7b.js",
-           resumeFromRunId: "wf_3a8c8b27-c7b" })
-```
+Jobs come from the real jobs list; Finance's hand-added entries (EPC batches /
+company blocks) come from `useHubData()`. `src/calendar/entries.js` merges the
+two into one entry shape and is the ONLY place that decides which properties a
+booking covers — the day counts, the rows and the EPC export all read that one
+function, so the screen and the exported file cannot disagree. Rows managerLink
+derived from costed jobs (`_linked`, ids prefixed `rmt-`) are dropped in the
+merge because the real job already carries that day.
 
-Finished agents replay from cache. If that script is gone, just do the work
-directly — the remaining steps are listed above.
+### Sheet/modal rule
 
-**Safety net:** `git tag pre-redesign` marks the last state before any of this.
-`git reset --hard pre-redesign` undoes it all.
-
-### Why the calendars disagree
-
-The Dashboard and Jobs calendars both read the real jobs list. The Finance one
-reads `useHubData()` — a *different* store — so a real job only appears there if
-it has costing, via the derived rows in `src/business/lib/managerLink.js`. One
-calendar, one source. Keep hand-added Finance entries (EPC / company work)
-visible, and don't double-count rows already derived from jobs (`_linked`, ids
-prefixed `rmt-`).
+The kit Modal's `footer` prop is the pinned action row — on a phone it is the
+only place a primary button is guaranteed on screen. Any dialog whose body can
+outgrow the viewport (quick add, review screens) must put its submit there, not
+at the end of the scrolling body. A `<form>` in the body pairs with a footer
+submit via the `form=` attribute.
 
 ---
 
@@ -85,6 +75,15 @@ prefixed `rmt-`).
 - **Screenshots time out here.** Check layout with `getComputedStyle` and
   `getBoundingClientRect`, never by reading page text. The two worst bugs in
   this project both read perfectly as text and were catastrophic on screen.
+- **`computer` clicks time out too when the pane is hidden** — drive the UI
+  from `javascript_tool`: `el.click()`, and for React inputs set the value via
+  the prototype setter then dispatch `input`/`change`. Wrap every probe in an
+  IIFE (the tool shares one scope across calls, even across reloads).
+- **A hidden pane freezes CSS animations at t=0 and starves ResizeObserver**,
+  so a sheet mid-`fade-up` measures 16px low forever and an RO-published CSS
+  var can sit stale. Finish animations (`el.getAnimations().forEach(a =>
+  a.finish())`) before trusting geometry, and treat those artefacts as the
+  environment's, not the app's.
 - **`vercel.json` rewrites everything to `/`**, so *any* URL returns 200 with
   index.html. "It returned 200" proves nothing — grep the content.
 - **`VITE_*` vars bake in at build time.** Changing them in Vercel does nothing
